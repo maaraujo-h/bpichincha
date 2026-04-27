@@ -1,0 +1,42 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://bpichincha.com/servicios">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <ser:ActualizarDatosDemograficos31>
+            <headerIn>
+                <dispositivo>DEVICE123</dispositivo>
+				<empresa>0010</empresa>
+				<canal>02</canal>
+				<medio>020002</medio>
+				<aplicacion>00270</aplicacion>
+				<agencia>00012</agencia>
+				<tipoTransaccion>304100111</tipoTransaccion>
+				<geolocalizacion>0,0</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>
+				<guid>550e8400e29b41d4a716446655440000</guid>
+				<fechaHora>202603311551000000</fechaHora>
+				<filler>00000000000000000000000000000000000000000000000000</filler>
+				<idioma>es</idioma>
+				<sesion>ASDASD77R01YH</sesion>
+				<ip>127.0.0.1</ip>
+				<idCliente>1711089364</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+                <!-- <bancs>
+                    <teller>00070560</teller>
+                    <terminal>1</terminal>
+                    <institucion>003</institucion>
+                    <agencia>1</agencia>
+                    <estacion>1</estacion>
+                    <aplicacion>1</aplicacion>
+                    <canal>1</canal>
+                </bancs>
+                -->
+            </headerIn>
+            <bodyIn>
+            	 <cif>0000000005319747</cif>
+                <operacion>2</operacion>
+                <clienteNatural>Y</clienteNatural>
+            </bodyIn>
+        </ser:ActualizarDatosDemograficos31>
+    </soapenv:Body>
+</soapenv:Envelope>
