@@ -1,0 +1,46 @@
+curl --request POST \
+  --url 'http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029' \
+  --header 'Accept: application/xml' \
+  --header 'Content-Type: text/xml' \
+  --header 'SOAPAction: http://bpichincha.com/servicios/ActualizarDatosDemograficos31' \
+  --data '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://bpichincha.com/servicios">
+<soapenv:Header/>
+<soapenv:Body>
+<ser:ActualizarDatosDemograficos31>
+<headerIn>
+<dispositivo>WEB</dispositivo>
+<empresa>01</empresa>
+<canal>WEB</canal>
+<medio>WEB</medio>
+<aplicacion>BEP</aplicacion>
+<agencia>00001</agencia>
+<tipoTransaccion>CONSULTA</tipoTransaccion>
+<geolocalizacion>-0.1807,-78.4678</geolocalizacion>
+<usuario>00070560</usuario>
+<unicidad>UNIC-20260418-0001</unicidad>
+<guid>550e8400-e2b9-41d4-a716-446655440000</guid>
+<fechaHora>202604188120000</fechaHora>
+<filler>N/A</filler>
+<idioma>ES</idioma>
+<sesion>SESS-001</sesion>
+<ip>192.168.1.1</ip>
+<idCliente>1718325226</idCliente>
+<tipoIdCliente>C</tipoIdCliente>
+<bancs>
+<teller>00070560</teller>
+<terminal>1</terminal>
+<institucion>003</institucion>
+<agencia>1</agencia>
+<estacion>1</estacion>
+<aplicacion>1</aplicacion>
+<canal>1</canal>
+</bancs>
+</headerIn>
+<bodyIn>
+<cif>5319747</cif>
+<operacion>2</operacion>
+<clienteNatural>Y</clienteNatural>
+</bodyIn>
+</ser:ActualizarDatosDemograficos31>
+</soapenv:Body>
+</soapenv:Envelope>'
