@@ -1,0 +1,286 @@
+{
+  "info": {
+    "_postman_id": "1f984617-0615-46a9-b35e-f19bc0101a8d",
+    "name": "WSClientes0029",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "5024286"
+  },
+  "item": [
+    {
+      "name": "WSClientes0029 datapower",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "<soapenv:Envelope\r\n\txmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\r\n\txmlns:ser=\"http://bpichincha.com/servicios\">\r\n\t<soapenv:Header/>\r\n\t<soapenv:Body>\r\n\t\t<ser:ActualizarDatosDemograficos31>\r\n\t\t\t<headerIn>\r\n\t\t\t\t<dispositivo>WEB</dispositivo>\r\n\t\t\t\t<empresa>01</empresa>\r\n\t\t\t\t<canal>WEB</canal>\r\n\t\t\t\t<medio>WEB</medio>\r\n\t\t\t\t<aplicacion>BEP</aplicacion>\r\n\t\t\t\t<agencia>00001</agencia>\r\n\t\t\t\t<tipoTransaccion>CONSULTA</tipoTransaccion>\r\n\t\t\t\t<geolocalizacion>-0.1807,-78.4678</geolocalizacion>\r\n\t\t\t\t<usuario>00070560</usuario>\r\n\t\t\t\t<unicidad>UNIC-20260418-0001</unicidad>\r\n\t\t\t\t<guid>550e8400-e2b9-41d4-a716-446655440000</guid>\r\n\t\t\t\t<fechaHora>202604188120000</fechaHora>\r\n\t\t\t\t<filler>N/A</filler>\r\n\t\t\t\t<idioma>ES</idioma>\r\n\t\t\t\t<sesion>SESS-001</sesion>\r\n\t\t\t\t<ip>192.168.1.1</ip>\r\n\t\t\t\t<idCliente>1718325226</idCliente>\r\n\t\t\t\t<tipoIdCliente>C</tipoIdCliente>\r\n\t\t\t\t<bancs>\r\n\t\t\t\t\t<teller></teller>\r\n\t\t\t\t\t<terminal>1</terminal>\r\n\t\t\t\t\t<institucion>003</institucion>\r\n\t\t\t\t\t<agencia>1</agencia>\r\n\t\t\t\t\t<estacion>1</estacion>\r\n\t\t\t\t\t<aplicacion>1</aplicacion>\r\n\t\t\t\t\t<canal>1</canal>\r\n\t\t\t\t</bancs>\r\n\t\t\t</headerIn>\r\n\t\t\t<bodyIn>\r\n\t\t\t\t<cif>0000000005319747</cif>\r\n\t\t\t\t<operacion>2</operacion>\r\n\t\t\t\t<clienteNatural>Y</clienteNatural>\r\n\t\t\t</bodyIn>\r\n\t\t</ser:ActualizarDatosDemograficos31>\r\n\t</soapenv:Body>\r\n</soapenv:Envelope>",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029",
+          "protocol": "http",
+          "host": [
+            "datapowertest",
+            "bp",
+            "bpichincha",
+            "com"
+          ],
+          "port": "8911",
+          "path": [
+            "Omnicanalidad",
+            "IntegrationBus",
+            "WSClientes0029"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "WSClientes0029 datapower 1",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ser=\"http://bpichincha.com/servicios\">\r\n    <soapenv:Header/>\r\n    <soapenv:Body>\r\n        <ser:ActualizarDatosDemograficos31>\r\n            <headerIn>\r\n                <dispositivo>DEVICE123</dispositivo>\r\n\t\t\t\t<empresa>0010</empresa>\r\n\t\t\t\t<canal>02</canal>\r\n\t\t\t\t<medio>020002</medio>\r\n\t\t\t\t<aplicacion>00270</aplicacion>\r\n\t\t\t\t<agencia>00012</agencia>\r\n\t\t\t\t<tipoTransaccion>304100111</tipoTransaccion>\r\n\t\t\t\t<geolocalizacion>0,0</geolocalizacion>\r\n\t\t\t\t<usuario>USINTERT</usuario>\r\n\t\t\t\t<unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>\r\n\t\t\t\t<guid>550e8400e29b41d4a716446655440000</guid>\r\n\t\t\t\t<fechaHora>202603311551000000</fechaHora>\r\n\t\t\t\t<filler>00000000000000000000000000000000000000000000000000</filler>\r\n\t\t\t\t<idioma>es</idioma>\r\n\t\t\t\t<sesion>ASDASD77R01YH</sesion>\r\n\t\t\t\t<ip>127.0.0.1</ip>\r\n\t\t\t\t<idCliente>1711089364</idCliente>\r\n\t\t\t\t<tipoIdCliente>0001</tipoIdCliente>\r\n                <!-- <bancs>\r\n                    <teller>00070560</teller>\r\n                    <terminal>1</terminal>\r\n                    <institucion>003</institucion>\r\n                    <agencia>1</agencia>\r\n                    <estacion>1</estacion>\r\n                    <aplicacion>1</aplicacion>\r\n                    <canal>1</canal>\r\n                </bancs>\r\n                -->\r\n            </headerIn>\r\n            <bodyIn>\r\n            \t <cif>0000000005319747</cif>\r\n                <operacion>2</operacion>\r\n                <clienteNatural>Y</clienteNatural>\r\n            </bodyIn>\r\n        </ser:ActualizarDatosDemograficos31>\r\n    </soapenv:Body>\r\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "_postman_previewlanguage": "",
+          "header": [],
+          "cookie": [
+            {
+              "expires": "Invalid Date",
+              "domain": "",
+              "path": ""
+            }
+          ],
+          "body": "<NS1:Envelope xmlns:NS1=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n   <NS1:Body>\r\n      <NS2:ActualizarDatosDemograficos31Response xmlns:NS2=\"http://bpichincha.com/servicios\">\r\n         <headerOut>\r\n            <dispositivo>DEVICE123</dispositivo>\r\n            <empresa>0010</empresa>\r\n            <canal>02</canal>\r\n            <medio>020002</medio>\r\n            <aplicacion>00270</aplicacion>\r\n            <agencia>00012</agencia>\r\n            <tipoTransaccion>304100111</tipoTransaccion>\r\n            <geolocalizacion>0,0</geolocalizacion>\r\n            <usuario>USINTERT</usuario>\r\n            <unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>\r\n            <guid>550e8400e29b41d4a716446655440000</guid>\r\n            <fechaHora>202603311551000000</fechaHora>\r\n            <filler>00000000000000000000000000000000000000000000000000</filler>\r\n            <idioma>es</idioma>\r\n            <sesion>ASDASD77R01YH</sesion>\r\n            <ip>127.0.0.1</ip>\r\n            <idCliente>1711089364</idCliente>\r\n            <tipoIdCliente>0001</tipoIdCliente>\r\n            <documento>\r\n               <fechaContable/>\r\n               <numeroDocumento/>\r\n               <journals>\r\n                  <journal>\r\n                     <valor/>\r\n                  </journal>\r\n               </journals>\r\n            </documento>\r\n         </headerOut>\r\n         <bodyOut>\r\n            <datosDemograficos>\r\n               <paisNacimiento/>\r\n               <provinciaEstadoNacimiento/>\r\n               <ciudadNacimiento/>\r\n               <fechaNacimiento/>\r\n               <edad>51</edad>\r\n               <sexo/>\r\n               <estadoCivil/>\r\n               <separacionBienes>1</separacionBienes>\r\n               <nivelEstudios>3000</nivelEstudios>\r\n               <profesion>5004</profesion>\r\n               <numeroCargasFamiliares>0</numeroCargasFamiliares>\r\n               <tipoVivienda>1</tipoVivienda>\r\n               <domicilioCuentaEscrituraslegalizadas/>\r\n               <domicilioConServiciosBasicos/>\r\n               <nombreCompletoDuenioCasa/>\r\n               <caracteristicasDomicilio/>\r\n               <tiempoResidencia/>\r\n               <sectorDomicilioCliente/>\r\n               <antiguedadEmpresa>51</antiguedadEmpresa>\r\n               <instalacionesOcupa>1</instalacionesOcupa>\r\n            </datosDemograficos>\r\n         </bodyOut>\r\n         <error>\r\n            <codigo>0</codigo>\r\n            <mensaje>TCSBRKR1_BP-OK</mensaje>\r\n            <mensajeNegocio>Tu transacción ha sido procesada satisfactoriamente.</mensajeNegocio>\r\n            <tipo>INFO</tipo>\r\n            <recurso>WSClientes0029/ActualizarDatosDemograficos31</recurso>\r\n            <componente>WSClientes0029</componente>\r\n            <backend>00638</backend>\r\n         </error>\r\n      </NS2:ActualizarDatosDemograficos31Response>\r\n   </NS1:Body>\r\n</NS1:Envelope>"
+        },
+        {
+          "name": "WSClientes0029 datapower 2",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope\r\n\txmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\r\n\txmlns:ser=\"http://bpichincha.com/servicios\">\r\n\t<soapenv:Header/>\r\n\t<soapenv:Body>\r\n\t\t<ser:ActualizarDatosDemograficos31>\r\n\t\t\t<headerIn>\r\n\t\t\t\t<dispositivo>WEB</dispositivo>\r\n\t\t\t\t<empresa>01</empresa>\r\n\t\t\t\t<canal>WEB</canal>\r\n\t\t\t\t<medio>WEB</medio>\r\n\t\t\t\t<aplicacion>BEP</aplicacion>\r\n\t\t\t\t<agencia>00001</agencia>\r\n\t\t\t\t<tipoTransaccion>CONSULTA</tipoTransaccion>\r\n\t\t\t\t<geolocalizacion>-0.1807,-78.4678</geolocalizacion>\r\n\t\t\t\t<usuario>00070560</usuario>\r\n\t\t\t\t<unicidad>UNIC-20260418-0001</unicidad>\r\n\t\t\t\t<guid>550e8400-e2b9-41d4-a716-446655440000</guid>\r\n\t\t\t\t<fechaHora>202604188120000</fechaHora>\r\n\t\t\t\t<filler>N/A</filler>\r\n\t\t\t\t<idioma>ES</idioma>\r\n\t\t\t\t<sesion>SESS-001</sesion>\r\n\t\t\t\t<ip>192.168.1.1</ip>\r\n\t\t\t\t<idCliente>1718325226</idCliente>\r\n\t\t\t\t<tipoIdCliente>C</tipoIdCliente>\r\n\t\t\t\t<bancs>\r\n\t\t\t\t\t<teller></teller>\r\n\t\t\t\t\t<terminal>1</terminal>\r\n\t\t\t\t\t<institucion>003</institucion>\r\n\t\t\t\t\t<agencia>1</agencia>\r\n\t\t\t\t\t<estacion>1</estacion>\r\n\t\t\t\t\t<aplicacion>1</aplicacion>\r\n\t\t\t\t\t<canal>1</canal>\r\n\t\t\t\t</bancs>\r\n\t\t\t</headerIn>\r\n\t\t\t<bodyIn>\r\n\t\t\t\t<cif>111111111</cif>\r\n\t\t\t\t<operacion>2</operacion>\r\n\t\t\t\t<clienteNatural>Y</clienteNatural>\r\n\t\t\t</bodyIn>\r\n\t\t</ser:ActualizarDatosDemograficos31>\r\n\t</soapenv:Body>\r\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029",
+              "protocol": "http",
+              "host": [
+                "datapowertest",
+                "bp",
+                "bpichincha",
+                "com"
+              ],
+              "port": "8911",
+              "path": [
+                "Omnicanalidad",
+                "IntegrationBus",
+                "WSClientes0029"
+              ]
+            }
+          },
+          "_postman_previewlanguage": null,
+          "header": null,
+          "cookie": [],
+          "body": "<NS1:Envelope xmlns:NS1=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n   <NS1:Body>\r\n      <NS2:ActualizarDatosDemograficos31Response xmlns:NS2=\"http://bpichincha.com/servicios\">\r\n         <headerOut>\r\n            <dispositivo>DEVICE123</dispositivo>\r\n            <empresa>0010</empresa>\r\n            <canal>02</canal>\r\n            <medio>020002</medio>\r\n            <aplicacion>00270</aplicacion>\r\n            <agencia>00012</agencia>\r\n            <tipoTransaccion>304100111</tipoTransaccion>\r\n            <geolocalizacion>0,0</geolocalizacion>\r\n            <usuario>USINTERT</usuario>\r\n            <unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>\r\n            <guid>550e8400e29b41d4a716446655440000</guid>\r\n            <fechaHora>202603311551000000</fechaHora>\r\n            <filler>00000000000000000000000000000000000000000000000000</filler>\r\n            <idioma>es</idioma>\r\n            <sesion>ASDASD77R01YH</sesion>\r\n            <ip>127.0.0.1</ip>\r\n            <idCliente>1711089364</idCliente>\r\n            <tipoIdCliente>0001</tipoIdCliente>\r\n            <documento>\r\n               <fechaContable/>\r\n               <numeroDocumento/>\r\n               <journals>\r\n                  <journal>\r\n                     <valor/>\r\n                  </journal>\r\n               </journals>\r\n            </documento>\r\n         </headerOut>\r\n         <bodyOut>\r\n            <datosDemograficos>\r\n               <paisNacimiento/>\r\n               <provinciaEstadoNacimiento/>\r\n               <ciudadNacimiento/>\r\n               <fechaNacimiento/>\r\n               <edad/>\r\n               <sexo/>\r\n               <estadoCivil/>\r\n               <separacionBienes/>\r\n               <nivelEstudios/>\r\n               <profesion/>\r\n               <numeroCargasFamiliares/>\r\n               <tipoVivienda/>\r\n               <domicilioCuentaEscrituraslegalizadas/>\r\n               <domicilioConServiciosBasicos/>\r\n               <nombreCompletoDuenioCasa/>\r\n               <caracteristicasDomicilio/>\r\n               <tiempoResidencia/>\r\n               <sectorDomicilioCliente/>\r\n               <antiguedadEmpresa/>\r\n               <instalacionesOcupa/>\r\n            </datosDemograficos>\r\n         </bodyOut>\r\n         <error>\r\n            <codigo>0</codigo>\r\n            <mensaje>TCSBRKR1_BP-OK</mensaje>\r\n            <mensajeNegocio>Tu transacción ha sido procesada satisfactoriamente.</mensajeNegocio>\r\n            <tipo>INFO</tipo>\r\n            <recurso>WSClientes0029/ActualizarDatosDemograficos31</recurso>\r\n            <componente>WSClientes0029</componente>\r\n            <backend>00638</backend>\r\n         </error>\r\n      </NS2:ActualizarDatosDemograficos31Response>\r\n   </NS1:Body>\r\n</NS1:Envelope>"
+        },
+        {
+          "name": "WSClientes0029 datapower 3",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope\r\n\txmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\r\n\txmlns:ser=\"http://bpichincha.com/servicios\">\r\n\t<soapenv:Header/>\r\n\t<soapenv:Body>\r\n\t\t<ser:ActualizarDatosDemograficos31>\r\n\t\t\t<headerIn>\r\n\t\t\t\t<dispositivo>WEB</dispositivo>\r\n\t\t\t\t<empresa>01</empresa>\r\n\t\t\t\t<canal>WEB</canal>\r\n\t\t\t\t<medio>WEB</medio>\r\n\t\t\t\t<aplicacion>BEP</aplicacion>\r\n\t\t\t\t<agencia>00001</agencia>\r\n\t\t\t\t<tipoTransaccion>CONSULTA</tipoTransaccion>\r\n\t\t\t\t<geolocalizacion>-0.1807,-78.4678</geolocalizacion>\r\n\t\t\t\t<usuario>00070560</usuario>\r\n\t\t\t\t<unicidad>UNIC-20260418-0001</unicidad>\r\n\t\t\t\t<guid>550e8400-e2b9-41d4-a716-446655440000</guid>\r\n\t\t\t\t<fechaHora>202604188120000</fechaHora>\r\n\t\t\t\t<filler>N/A</filler>\r\n\t\t\t\t<idioma>ES</idioma>\r\n\t\t\t\t<sesion>SESS-001</sesion>\r\n\t\t\t\t<ip>192.168.1.1</ip>\r\n\t\t\t\t<idCliente>1718325226</idCliente>\r\n\t\t\t\t<tipoIdCliente>C</tipoIdCliente>\r\n\t\t\t\t<bancs>\r\n\t\t\t\t\t<teller></teller>\r\n\t\t\t\t\t<terminal>1</terminal>\r\n\t\t\t\t\t<institucion>003</institucion>\r\n\t\t\t\t\t<agencia>1</agencia>\r\n\t\t\t\t\t<estacion>1</estacion>\r\n\t\t\t\t\t<aplicacion>1</aplicacion>\r\n\t\t\t\t\t<canal>1</canal>\r\n\t\t\t\t</bancs>\r\n\t\t\t</headerIn>\r\n\t\t\t<bodyIn>\r\n\t\t\t\t<operacion>2</operacion>\r\n\t\t\t\t<clienteNatural>Y</clienteNatural>\r\n\t\t\t</bodyIn>\r\n\t\t</ser:ActualizarDatosDemograficos31>\r\n\t</soapenv:Body>\r\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029",
+              "protocol": "http",
+              "host": [
+                "datapowertest",
+                "bp",
+                "bpichincha",
+                "com"
+              ],
+              "port": "8911",
+              "path": [
+                "Omnicanalidad",
+                "IntegrationBus",
+                "WSClientes0029"
+              ]
+            }
+          },
+          "_postman_previewlanguage": "",
+          "header": [],
+          "cookie": [
+            {
+              "expires": "Invalid Date",
+              "domain": "",
+              "path": ""
+            }
+          ],
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n   <soapenv:Body>\r\n      <soapenv:Fault>\r\n         <faultcode>soapenv:Server</faultcode>\r\n         <faultstring>BIP3113E: Exception detected in message flow com.bpichincha.esb.wsclientes0029.WSClientes0029.SOAP Input (integration node TCSBRKR3_BP)</faultstring>\r\n         <detail>\r\n            <Text>BIP2230E: Error detected whilst processing a message in node 'com.bpichincha.esb.wsclientes0029.WSClientes0029.IniciarServicioSOAP.Iniciar_KO'. \r\nThe integration node detected an error whilst processing a message in node 'com.bpichincha.esb.wsclientes0029.WSClientes0029.IniciarServicioSOAP.Iniciar_KO'. An exception has been thrown to cut short the processing of the message. \r\nSee the following messages for details of the error. : /build/jenkins_swg/slot2/product-build/WMB/src/DataFlowEngine/SQLNodeLibrary/ImbComputeNode.cpp: 515: ImbComputeNode::evaluate: ComIbmComputeNode: com/bpichincha/esb/wsclientes0029/WSClientes0029#FCMComposite_1_4.com/bpichincha/esb/generico/generales/IniciarServicioSOAP#FCMComposite_1_3\r\nBIP2488E:  ('com.bpichincha.esb.generico.generales.IniciarServicioSOAP_Iniciar_KO.Main', '19.10') Error detected whilst executing the SQL statement ''CREATE LASTCHILD OF Environment.salida DOMAIN dominioXMLNSC NAMESPACE namespace NAME servicio.metodo || 'Response';''. \r\nThe integration node detected an error whilst executing the given statement. An exception has been thrown to cut short the SQL program. \r\nSee the following messages for details of the error. : /build/jenkins_swg/slot2/product-build/WMB/src/DataFlowEngine/ImbRdl/ImbRdlStatementGroup.cpp: 792: SqlStatementGroup::execute: : \r\nBIP2545E: ('com.bpichincha.esb.generico.generales.IniciarServicioSOAP_Iniciar_KO.Main', '19.111') : The expression ''servicio.metodo || 'Response''' evaluates to a value of type ''NULL'' but a value of type ''CHARACTER'' is expected. \r\nThe given expression evaluates to NULL or to a data type which is not acceptable for its usage. \r\nCorrect the syntax of your ESQL expression in node ''com.bpichincha.esb.generico.generales.IniciarServicioSOAP_Iniciar_KO.Main'', around line and column ''19.111'', then redeploy the message flow. : /build/jenkins_swg/slot2/product-build/WMB/src/DataFlowEngine/ImbRdl/ImbRdlTreeStatements.cpp: 538: SqlCreateFieldStatement::execute: :</Text>\r\n         </detail>\r\n      </soapenv:Fault>\r\n   </soapenv:Body>\r\n</soapenv:Envelope>"
+        },
+        {
+          "name": "WSClientes0029 datapower 4",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ser=\"http://bpichincha.com/servicios\">\r\n    <soapenv:Header/>\r\n    <soapenv:Body>\r\n        <ser:ActualizarDatosDemograficos31>\r\n            <headerIn>\r\n                <dispositivo>WEB</dispositivo>\r\n                <empresa>01</empresa>\r\n                <canal>WEB</canal>\r\n                <medio>WEB</medio>\r\n                <aplicacion>BEP</aplicacion>\r\n                <agencia>00001</agencia>\r\n                <tipoTransaccion>CONSULTA</tipoTransaccion>\r\n                <geolocalizacion>-0.1807,\r\n-78.4678</geolocalizacion>\r\n                <usuario>00070560</usuario>\r\n                <unicidad>UNIC-20260418-0001</unicidad>\r\n                <guid>550e8400-e2b9-41d4-a716-446655440000</guid>\r\n                <fechaHora>202604188120000</fechaHora>\r\n                <filler>N/A</filler>\r\n                <idioma>ES</idioma>\r\n                <sesion>SESS-001</sesion>\r\n                <ip>192.168.1.1</ip>\r\n                <idCliente>1718325226</idCliente>\r\n                <tipoIdCliente>C</tipoIdCliente>\r\n                <bancs>\r\n                    <teller>00070560</teller>\r\n                    <terminal>1</terminal>\r\n                    <institucion>003</institucion>\r\n                    <agencia>1</agencia>\r\n                    <estacion>1</estacion>\r\n                    <aplicacion>1</aplicacion>\r\n                    <canal>1</canal>\r\n                </bancs>\r\n            </headerIn>\r\n            <bodyIn>\r\n                <cif>5319747</cif>\r\n                <operacion>2</operacion>\r\n                <clienteNatural>Y</clienteNatural>\r\n            </bodyIn>\r\n        </ser:ActualizarDatosDemograficos31>\r\n    </soapenv:Body>\r\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029",
+              "protocol": "http",
+              "host": [
+                "datapowertest",
+                "bp",
+                "bpichincha",
+                "com"
+              ],
+              "port": "8911",
+              "path": [
+                "Omnicanalidad",
+                "IntegrationBus",
+                "WSClientes0029"
+              ]
+            }
+          },
+          "_postman_previewlanguage": null,
+          "header": null,
+          "cookie": [],
+          "body": "<NS1:Envelope xmlns:NS1=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n   <NS1:Body>\r\n      <NS2:ActualizarDatosDemograficos31Response xmlns:NS2=\"http://bpichincha.com/servicios\">\r\n         <headerOut>\r\n            <dispositivo>DEVICE123</dispositivo>\r\n            <empresa>0010</empresa>\r\n            <canal>02</canal>\r\n            <medio>020002</medio>\r\n            <aplicacion>00270</aplicacion>\r\n            <agencia>00012</agencia>\r\n            <tipoTransaccion>304100111</tipoTransaccion>\r\n            <geolocalizacion>0,0</geolocalizacion>\r\n            <usuario>USINTERT</usuario>\r\n            <unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>\r\n            <guid>550e8400e29b41d4a716446655440000</guid>\r\n            <fechaHora>202603311551000000</fechaHora>\r\n            <filler>00000000000000000000000000000000000000000000000000</filler>\r\n            <idioma>es</idioma>\r\n            <sesion>ASDASD77R01YH</sesion>\r\n            <ip>127.0.0.1</ip>\r\n            <idCliente>1711089364</idCliente>\r\n            <tipoIdCliente>0001</tipoIdCliente>\r\n            <documento>\r\n               <fechaContable/>\r\n               <numeroDocumento/>\r\n               <journals>\r\n                  <journal>\r\n                     <valor/>\r\n                  </journal>\r\n               </journals>\r\n            </documento>\r\n         </headerOut>\r\n         <bodyOut>\r\n            <datosDemograficos>\r\n               <paisNacimiento/>\r\n               <provinciaEstadoNacimiento/>\r\n               <ciudadNacimiento/>\r\n               <fechaNacimiento/>\r\n               <edad>51</edad>\r\n               <sexo/>\r\n               <estadoCivil/>\r\n               <separacionBienes>1</separacionBienes>\r\n               <nivelEstudios>3000</nivelEstudios>\r\n               <profesion>5004</profesion>\r\n               <numeroCargasFamiliares>0</numeroCargasFamiliares>\r\n               <tipoVivienda>1</tipoVivienda>\r\n               <domicilioCuentaEscrituraslegalizadas/>\r\n               <domicilioConServiciosBasicos/>\r\n               <nombreCompletoDuenioCasa/>\r\n               <caracteristicasDomicilio/>\r\n               <tiempoResidencia/>\r\n               <sectorDomicilioCliente/>\r\n               <antiguedadEmpresa>51</antiguedadEmpresa>\r\n               <instalacionesOcupa>1</instalacionesOcupa>\r\n            </datosDemograficos>\r\n         </bodyOut>\r\n         <error>\r\n            <codigo>0</codigo>\r\n            <mensaje>TCSBRKR1_BP-OK</mensaje>\r\n            <mensajeNegocio>Tu transacción ha sido procesada satisfactoriamente.</mensajeNegocio>\r\n            <tipo>INFO</tipo>\r\n            <recurso>WSClientes0029/ActualizarDatosDemograficos31</recurso>\r\n            <componente>WSClientes0029</componente>\r\n            <backend>00638</backend>\r\n         </error>\r\n      </NS2:ActualizarDatosDemograficos31Response>\r\n   </NS1:Body>\r\n</NS1:Envelope>"
+        },
+        {
+          "name": "WSClientes0029 datapower 5",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ser=\"http://bpichincha.com/servicios\">\r\n    <soapenv:Header/>\r\n    <soapenv:Body>\r\n        <ser:ActualizarDatosDemograficos31>\r\n            <headerIn>\r\n                <dispositivo>WEB</dispositivo>\r\n                <empresa>01</empresa>\r\n                <canal>WEB</canal>\r\n                <medio>WEB</medio>\r\n                <aplicacion>BEP</aplicacion>\r\n                <agencia>00001</agencia>\r\n                <tipoTransaccion>CONSULTA</tipoTransaccion>\r\n                <geolocalizacion>-0.1807,-78.4678</geolocalizacion>\r\n                <usuario>00070560</usuario>\r\n                <unicidad>UNIC-20260418-0001</unicidad>\r\n                <guid>550e8400-e2b9-41d4-a716-446655440000</guid>\r\n                <fechaHora>202604188120000</fechaHora>\r\n                <filler>N/A</filler>\r\n                <idioma>ES</idioma>\r\n                <sesion>SESS-001</sesion>\r\n                <ip>192.168.1.1</ip>\r\n                <idCliente>1718325226</idCliente>\r\n                <tipoIdCliente>C</tipoIdCliente>\r\n                <bancs>\r\n                    <teller>00070560</teller>\r\n                    <terminal>1</terminal>\r\n                    <institucion>003</institucion>\r\n                    <agencia>1</agencia>\r\n                    <estacion>1</estacion>\r\n                    <aplicacion>1</aplicacion>\r\n                    <canal>1</canal>\r\n                </bancs>\r\n            </headerIn>\r\n            <bodyIn>\r\n                <cif>1111</cif>\r\n                <operacion>2</operacion>\r\n                <clienteNatural>Y</clienteNatural>\r\n            </bodyIn>\r\n        </ser:ActualizarDatosDemograficos31>\r\n    </soapenv:Body>\r\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029",
+              "protocol": "http",
+              "host": [
+                "datapowertest",
+                "bp",
+                "bpichincha",
+                "com"
+              ],
+              "port": "8911",
+              "path": [
+                "Omnicanalidad",
+                "IntegrationBus",
+                "WSClientes0029"
+              ]
+            }
+          },
+          "_postman_previewlanguage": null,
+          "header": null,
+          "cookie": [],
+          "body": "<NS1:Envelope xmlns:NS1=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n   <NS1:Body>\r\n      <NS2:ActualizarDatosDemograficos31Response xmlns:NS2=\"http://bpichincha.com/servicios\">\r\n         <headerOut>\r\n            <dispositivo>DEVICE123</dispositivo>\r\n            <empresa>0010</empresa>\r\n            <canal>02</canal>\r\n            <medio>020002</medio>\r\n            <aplicacion>00270</aplicacion>\r\n            <agencia>00012</agencia>\r\n            <tipoTransaccion>304100111</tipoTransaccion>\r\n            <geolocalizacion>0,0</geolocalizacion>\r\n            <usuario>USINTERT</usuario>\r\n            <unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>\r\n            <guid>550e8400e29b41d4a716446655440000</guid>\r\n            <fechaHora>202603311551000000</fechaHora>\r\n            <filler>00000000000000000000000000000000000000000000000000</filler>\r\n            <idioma>es</idioma>\r\n            <sesion>ASDASD77R01YH</sesion>\r\n            <ip>127.0.0.1</ip>\r\n            <idCliente>1711089364</idCliente>\r\n            <tipoIdCliente>0001</tipoIdCliente>\r\n            <documento>\r\n               <fechaContable/>\r\n               <numeroDocumento/>\r\n               <journals>\r\n                  <journal>\r\n                     <valor/>\r\n                  </journal>\r\n               </journals>\r\n            </documento>\r\n         </headerOut>\r\n         <bodyOut>\r\n            <datosDemograficos>\r\n               <paisNacimiento/>\r\n               <provinciaEstadoNacimiento/>\r\n               <ciudadNacimiento/>\r\n               <fechaNacimiento/>\r\n               <edad>33</edad>\r\n               <sexo/>\r\n               <estadoCivil/>\r\n               <separacionBienes>1</separacionBienes>\r\n               <nivelEstudios>3000</nivelEstudios>\r\n               <profesion/>\r\n               <numeroCargasFamiliares>0</numeroCargasFamiliares>\r\n               <tipoVivienda>4</tipoVivienda>\r\n               <domicilioCuentaEscrituraslegalizadas/>\r\n               <domicilioConServiciosBasicos/>\r\n               <nombreCompletoDuenioCasa/>\r\n               <caracteristicasDomicilio/>\r\n               <tiempoResidencia/>\r\n               <sectorDomicilioCliente/>\r\n               <antiguedadEmpresa>33</antiguedadEmpresa>\r\n               <instalacionesOcupa>4</instalacionesOcupa>\r\n            </datosDemograficos>\r\n         </bodyOut>\r\n         <error>\r\n            <codigo>0</codigo>\r\n            <mensaje>TCSBRKR3_BP-OK</mensaje>\r\n            <mensajeNegocio>Tu transacción ha sido procesada satisfactoriamente.</mensajeNegocio>\r\n            <tipo>INFO</tipo>\r\n            <recurso>WSClientes0029/ActualizarDatosDemograficos31</recurso>\r\n            <componente>WSClientes0029</componente>\r\n            <backend>00638</backend>\r\n         </error>\r\n      </NS2:ActualizarDatosDemograficos31Response>\r\n   </NS1:Body>\r\n</NS1:Envelope>"
+        },
+        {
+          "name": "WSClientes0029 datapower 6",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ser=\"http://bpichincha.com/servicios\">\r\n    <soapenv:Header/>\r\n    <soapenv:Body>\r\n        <ser:ActualizarDatosDemograficos31>\r\n            <headerIn>\r\n                <dispositivo>WEB</dispositivo>\r\n                <empresa>01</empresa>\r\n                <canal>WEB</canal>\r\n                <medio>WEB</medio>\r\n                <aplicacion>BEP</aplicacion>\r\n                <agencia>00001</agencia>\r\n                <tipoTransaccion>CONSULTA</tipoTransaccion>\r\n                <geolocalizacion>-0.1807,-78.4678</geolocalizacion>\r\n                <usuario>00070560</usuario>\r\n                <unicidad>UNIC-20260418-0001</unicidad>\r\n                <guid>550e8400-e2b9-41d4-a716-446655440000</guid>\r\n                <fechaHora>202604188120000</fechaHora>\r\n                <filler>N/A</filler>\r\n                <idioma>ES</idioma>\r\n                <sesion>SESS-001</sesion>\r\n                <ip>192.168.1.1</ip>\r\n                <idCliente>1718325226</idCliente>\r\n                <tipoIdCliente>C</tipoIdCliente>\r\n                <bancs>\r\n                    <teller>00070560</teller>\r\n                    <terminal>1</terminal>\r\n                    <institucion>003</institucion>\r\n                    <agencia>1</agencia>\r\n                    <estacion>1</estacion>\r\n                    <aplicacion>1</aplicacion>\r\n                    <canal>1</canal>\r\n                </bancs>\r\n            </headerIn>\r\n            <bodyIn>\r\n                <operacion>2</operacion>\r\n                <clienteNatural>Y</clienteNatural>\r\n            </bodyIn>\r\n        </ser:ActualizarDatosDemograficos31>\r\n    </soapenv:Body>\r\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://datapowertest.bp.bpichincha.com:8911/Omnicanalidad/IntegrationBus/WSClientes0029",
+              "protocol": "http",
+              "host": [
+                "datapowertest",
+                "bp",
+                "bpichincha",
+                "com"
+              ],
+              "port": "8911",
+              "path": [
+                "Omnicanalidad",
+                "IntegrationBus",
+                "WSClientes0029"
+              ]
+            }
+          },
+          "_postman_previewlanguage": "",
+          "header": [],
+          "cookie": [
+            {
+              "expires": "Invalid Date",
+              "domain": "",
+              "path": ""
+            }
+          ],
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n   <soapenv:Body>\r\n      <soapenv:Fault>\r\n         <faultcode>soapenv:Server</faultcode>\r\n         <faultstring>BIP3113E: Exception detected in message flow com.bpichincha.esb.wsclientes0029.WSClientes0029.SOAP Input (integration node TCSBRKR3_BP)</faultstring>\r\n         <detail>\r\n            <Text>BIP2230E: Error detected whilst processing a message in node 'com.bpichincha.esb.wsclientes0029.WSClientes0029.IniciarServicioSOAP.Iniciar_KO'. \r\nThe integration node detected an error whilst processing a message in node 'com.bpichincha.esb.wsclientes0029.WSClientes0029.IniciarServicioSOAP.Iniciar_KO'. An exception has been thrown to cut short the processing of the message. \r\nSee the following messages for details of the error. : /build/jenkins_swg/slot2/product-build/WMB/src/DataFlowEngine/SQLNodeLibrary/ImbComputeNode.cpp: 515: ImbComputeNode::evaluate: ComIbmComputeNode: com/bpichincha/esb/wsclientes0029/WSClientes0029#FCMComposite_1_4.com/bpichincha/esb/generico/generales/IniciarServicioSOAP#FCMComposite_1_3\r\nBIP2488E:  ('com.bpichincha.esb.generico.generales.IniciarServicioSOAP_Iniciar_KO.Main', '19.10') Error detected whilst executing the SQL statement ''CREATE LASTCHILD OF Environment.salida DOMAIN dominioXMLNSC NAMESPACE namespace NAME servicio.metodo || 'Response';''. \r\nThe integration node detected an error whilst executing the given statement. An exception has been thrown to cut short the SQL program. \r\nSee the following messages for details of the error. : /build/jenkins_swg/slot2/product-build/WMB/src/DataFlowEngine/ImbRdl/ImbRdlStatementGroup.cpp: 792: SqlStatementGroup::execute: : \r\nBIP2545E: ('com.bpichincha.esb.generico.generales.IniciarServicioSOAP_Iniciar_KO.Main', '19.111') : The expression ''servicio.metodo || 'Response''' evaluates to a value of type ''NULL'' but a value of type ''CHARACTER'' is expected. \r\nThe given expression evaluates to NULL or to a data type which is not acceptable for its usage. \r\nCorrect the syntax of your ESQL expression in node ''com.bpichincha.esb.generico.generales.IniciarServicioSOAP_Iniciar_KO.Main'', around line and column ''19.111'', then redeploy the message flow. : /build/jenkins_swg/slot2/product-build/WMB/src/DataFlowEngine/ImbRdl/ImbRdlTreeStatements.cpp: 538: SqlCreateFieldStatement::execute: :</Text>\r\n         </detail>\r\n      </soapenv:Fault>\r\n   </soapenv:Body>\r\n</soapenv:Envelope>"
+        }
+      ]
+    }
+  ]
+}
