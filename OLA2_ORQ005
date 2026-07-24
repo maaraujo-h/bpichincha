@@ -1,0 +1,1609 @@
+LEGADO
+const xml2js = require('xml2js');
+
+const responseText = insomnia.response.text();
+const status = insomnia.response.status;
+const responseTime = insomnia.response.responseTime;
+
+const parseOptions = {
+  explicitArray: false,
+  trim: true,
+  explicitRoot: true,
+  mergeAttrs: false
+};
+
+function removeNamespace(name) {
+  return name.includes(':')
+    ? name.split(':').pop()
+    : name;
+}
+
+function cleanNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(cleanNamespaces);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const result = {};
+
+    for (const [key, child] of Object.entries(value)) {
+      result[removeNamespace(key)] =
+        cleanNamespaces(child);
+    }
+
+    return result;
+  }
+
+  return value;
+}
+
+function findNode(value, searchedName) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findNode(item, searchedName);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      if (removeNamespace(key) === searchedName) {
+        return child;
+      }
+
+      const found = findNode(child, searchedName);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalar(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'object' && '_' in value) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+let parsed;
+
+try {
+  parsed = await xml2js.parseStringPromise(
+    responseText,
+    parseOptions
+  );
+} catch (error) {
+  throw new Error(
+    `No fue posible convertir el XML legado: ${error.message}`
+  );
+}
+
+const normalized = cleanNamespaces(parsed);
+
+const errorBlock = findNode(normalized, 'error');
+const credito = findNode(normalized, 'credito');
+const cuentaDebito = findNode(normalized, 'cuentaDebito');
+const flujo = findNode(normalized, 'flujo');
+
+const snapshot = {
+  httpStatus: status,
+  responseTime,
+
+  error: {
+    codigo: scalar(errorBlock?.codigo),
+    mensaje: scalar(errorBlock?.mensaje),
+    mensajeNegocio: scalar(errorBlock?.mensajeNegocio),
+    tipo: scalar(errorBlock?.tipo),
+    recurso: scalar(errorBlock?.recurso),
+    componente: scalar(errorBlock?.componente),
+    backend: scalar(errorBlock?.backend)
+  },
+
+  credito: {
+    identificacion: scalar(credito?.identificacion),
+    tipoIdentificacion: scalar(credito?.tipoIdentificacion),
+    numeroOperacion: scalar(credito?.numeroOperacion),
+    numeroOriginalOperacion: scalar(
+      credito?.numeroOriginalOperacion
+    ),
+    producto: scalar(credito?.producto),
+    subProducto: scalar(credito?.subProducto),
+    tipoProducto: scalar(credito?.tipoProducto),
+    moneda: scalar(credito?.moneda),
+    cuotaPagar: scalar(credito?.cuotaPagar),
+    fechaPago: scalar(credito?.fechaPago),
+    monto: scalar(credito?.monto),
+    plazo: scalar(credito?.plazo),
+    fechaDesembolso: scalar(credito?.fechaDesembolso),
+    deudaActual: scalar(credito?.deudaActual),
+    diasMora: scalar(credito?.diasMora),
+    interesMora: scalar(credito?.interesMora),
+    numeroDividendos: scalar(credito?.numeroDividendos),
+    nombreCliente: scalar(credito?.nombreCliente)
+  },
+
+  cuentaDebito: {
+    numeroCuenta: scalar(cuentaDebito?.numeroCuenta),
+    numeroCuentaMask: scalar(
+      cuentaDebito?.numeroCuentaMask
+    ),
+    tipoProducto: scalar(cuentaDebito?.tipoProducto)
+  },
+
+  flujo: {
+    estado: scalar(flujo?.estado)
+  }
+};
+
+insomnia.environment.set(
+  'EP001_RESPUESTA_LEGADO',
+  JSON.stringify(snapshot)
+);
+
+insomnia.test('LEGADO - HTTP 200', () => {
+  insomnia.expect(
+    status,
+    `Se esperaba HTTP 200 y se recibió ${status}`
+  ).to.eql(200);
+});
+
+insomnia.test('LEGADO - XML válido', () => {
+  insomnia.expect(
+    findNode(normalized, 'Envelope'),
+    'No se encontró el Envelope SOAP'
+  ).to.exist;
+
+  insomnia.expect(
+    findNode(normalized, 'Body'),
+    'No se encontró el Body SOAP'
+  ).to.exist;
+});
+
+console.log(
+  'Snapshot del legado guardado:',
+  JSON.stringify(snapshot, null, 2)
+);
+
+MIGRADO
+
+const xml2js = require('xml2js');
+
+const responseText = insomnia.response.text();
+const status = insomnia.response.status;
+const responseTime = insomnia.response.responseTime;
+
+const parseOptions = {
+  explicitArray: false,
+  trim: true,
+  explicitRoot: true,
+  mergeAttrs: false
+};
+
+function removeNamespace(name) {
+  return name.includes(':')
+    ? name.split(':').pop()
+    : name;
+}
+
+function cleanNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(cleanNamespaces);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const result = {};
+
+    for (const [key, child] of Object.entries(value)) {
+      result[removeNamespace(key)] =
+        cleanNamespaces(child);
+    }
+
+    return result;
+  }
+
+  return value;
+}
+
+function findNode(value, searchedName) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findNode(item, searchedName);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      if (removeNamespace(key) === searchedName) {
+        return child;
+      }
+
+      const found = findNode(child, searchedName);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalar(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'object' && '_' in value) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+function normalizarMensaje(message) {
+  if (!message) {
+    return '';
+  }
+
+  return String(message)
+    .replace(/^TCSBRKR2_BP[:\-]/i, '')
+    .replace(/^ORQProductos0005[:\-]/i, '')
+    .replace(/^\d+[:\-]/, '')
+    .trim();
+}
+
+function assertEqual(
+  testName,
+  actual,
+  expected,
+  fieldName
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldName} no coincide. ` +
+      `Esperado: "${expected}". ` +
+      `Obtenido: "${actual}".`
+    ).to.eql(expected);
+  });
+}
+
+function assertNotEmpty(
+  testName,
+  actual,
+  fieldName
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldName} no debe estar vacío`
+    ).to.be.a('string').and.not.empty;
+  });
+}
+
+const legacyString = insomnia.environment.get(
+  'EP001_RESPUESTA_LEGADO'
+);
+
+insomnia.test(
+  'Existe ejecución previa del legado',
+  () => {
+    insomnia.expect(
+      legacyString,
+      'Ejecuta primero el request del servicio legado'
+    ).to.be.a('string');
+
+    insomnia.expect(
+      legacyString?.length || 0,
+      'La variable EP001_RESPUESTA_LEGADO está vacía'
+    ).to.be.greaterThan(0);
+  }
+);
+
+if (!legacyString) {
+  throw new Error(
+    'No existe la respuesta del legado. ' +
+    'Ejecuta primero el request legado.'
+  );
+}
+
+const legacy = JSON.parse(legacyString);
+
+let parsed;
+
+try {
+  parsed = await xml2js.parseStringPromise(
+    responseText,
+    parseOptions
+  );
+} catch (error) {
+  throw new Error(
+    `No fue posible convertir el XML migrado: ${error.message}`
+  );
+}
+
+const normalized = cleanNamespaces(parsed);
+
+const errorBlock = findNode(normalized, 'error');
+const credito = findNode(normalized, 'credito');
+const cuentaDebito = findNode(normalized, 'cuentaDebito');
+const flujo = findNode(normalized, 'flujo');
+
+const migrated = {
+  httpStatus: status,
+  responseTime,
+
+  error: {
+    codigo: scalar(errorBlock?.codigo),
+    mensaje: scalar(errorBlock?.mensaje),
+    mensajeNegocio: scalar(errorBlock?.mensajeNegocio),
+    tipo: scalar(errorBlock?.tipo),
+    recurso: scalar(errorBlock?.recurso),
+    componente: scalar(errorBlock?.componente),
+    backend: scalar(errorBlock?.backend)
+  },
+
+  credito: {
+    identificacion: scalar(credito?.identificacion),
+    tipoIdentificacion: scalar(credito?.tipoIdentificacion),
+    numeroOperacion: scalar(credito?.numeroOperacion),
+    numeroOriginalOperacion: scalar(
+      credito?.numeroOriginalOperacion
+    ),
+    producto: scalar(credito?.producto),
+    subProducto: scalar(credito?.subProducto),
+    tipoProducto: scalar(credito?.tipoProducto),
+    moneda: scalar(credito?.moneda),
+    cuotaPagar: scalar(credito?.cuotaPagar),
+    fechaPago: scalar(credito?.fechaPago),
+    monto: scalar(credito?.monto),
+    plazo: scalar(credito?.plazo),
+    fechaDesembolso: scalar(credito?.fechaDesembolso),
+    deudaActual: scalar(credito?.deudaActual),
+    diasMora: scalar(credito?.diasMora),
+    interesMora: scalar(credito?.interesMora),
+    numeroDividendos: scalar(credito?.numeroDividendos),
+    nombreCliente: scalar(credito?.nombreCliente)
+  },
+
+  cuentaDebito: {
+    numeroCuenta: scalar(cuentaDebito?.numeroCuenta),
+    numeroCuentaMask: scalar(
+      cuentaDebito?.numeroCuentaMask
+    ),
+    tipoProducto: scalar(cuentaDebito?.tipoProducto)
+  },
+
+  flujo: {
+    estado: scalar(flujo?.estado)
+  }
+};
+
+const sla = Number(
+  insomnia.environment.get('sla_ms') || 800
+);
+
+// =====================================================
+// HTTP Y CONTRATO SOAP
+// =====================================================
+
+insomnia.test('MIGRADO - HTTP 200', () => {
+  insomnia.expect(
+    status,
+    `Se esperaba HTTP 200 y se recibió ${status}`
+  ).to.eql(200);
+});
+
+insomnia.test('MIGRADO - Tiempo menor al SLA', () => {
+  insomnia.expect(
+    responseTime,
+    `El servicio tardó ${responseTime} ms. ` +
+    `El límite configurado es ${sla} ms.`
+  ).to.be.below(sla);
+});
+
+insomnia.test('MIGRADO - Envelope SOAP presente', () => {
+  insomnia.expect(
+    findNode(normalized, 'Envelope'),
+    'No se encontró el Envelope SOAP'
+  ).to.exist;
+});
+
+insomnia.test('MIGRADO - Body SOAP presente', () => {
+  insomnia.expect(
+    findNode(normalized, 'Body'),
+    'No se encontró el Body SOAP'
+  ).to.exist;
+});
+
+insomnia.test(
+  'MIGRADO - ConsultarDetallePrestamos01Response presente',
+  () => {
+    insomnia.expect(
+      findNode(
+        normalized,
+        'ConsultarDetallePrestamos01Response'
+      ),
+      'No se encontró ConsultarDetallePrestamos01Response'
+    ).to.exist;
+  }
+);
+
+// =====================================================
+// CA-01: CONSULTA EXITOSA
+// =====================================================
+
+assertEqual(
+  'CA-01 - Código exitoso',
+  migrated.error.codigo,
+  '0',
+  'error.codigo'
+);
+
+assertEqual(
+  'CA-01 - Mensaje OK',
+  normalizarMensaje(migrated.error.mensaje),
+  'OK',
+  'error.mensaje'
+);
+
+assertEqual(
+  'CA-01 - Tipo INFO',
+  migrated.error.tipo,
+  'INFO',
+  'error.tipo'
+);
+
+assertEqual(
+  'CA-01 - Flujo finalizado',
+  migrated.flujo.estado,
+  'finalizar',
+  'bodyOut.flujo.estado'
+);
+
+assertNotEmpty(
+  'CA-01 - Crédito presente',
+  migrated.credito.numeroOperacion,
+  'credito.numeroOperacion'
+);
+
+assertEqual(
+  'CA-01 - Identificación corresponde al request',
+  migrated.credito.identificacion,
+  insomnia.environment.get('identificacion'),
+  'credito.identificacion'
+);
+
+assertEqual(
+  'CA-01 - Número de operación corresponde al request',
+  migrated.credito.numeroOperacion,
+  insomnia.environment.get('numeroOperacion'),
+  'credito.numeroOperacion'
+);
+
+assertNotEmpty(
+  'CA-01 - Monto presente',
+  migrated.credito.monto,
+  'credito.monto'
+);
+
+assertNotEmpty(
+  'CA-01 - Deuda actual presente',
+  migrated.credito.deudaActual,
+  'credito.deudaActual'
+);
+
+assertNotEmpty(
+  'CA-01 - Días de mora presente',
+  migrated.credito.diasMora,
+  'credito.diasMora'
+);
+
+assertNotEmpty(
+  'CA-01 - Cuenta de débito presente',
+  migrated.cuentaDebito.numeroCuenta,
+  'credito.cuentaDebito.numeroCuenta'
+);
+
+// =====================================================
+// VALIDACIÓN DE TIPOS NUMÉRICOS
+// =====================================================
+
+insomnia.test('CA-01 - monto es numérico', () => {
+  insomnia.expect(
+    migrated.credito.monto,
+    `Monto inválido: ${migrated.credito.monto}`
+  ).to.match(/^-?\d+(\.\d+)?$/);
+});
+
+insomnia.test('CA-01 - deudaActual es numérica', () => {
+  insomnia.expect(
+    migrated.credito.deudaActual,
+    `Deuda actual inválida: ${migrated.credito.deudaActual}`
+  ).to.match(/^-?\d+(\.\d+)?$/);
+});
+
+insomnia.test('CA-01 - diasMora es numérico', () => {
+  insomnia.expect(
+    migrated.credito.diasMora,
+    `Días de mora inválidos: ${migrated.credito.diasMora}`
+  ).to.match(/^\d+$/);
+});
+
+insomnia.test('CA-01 - cuotaPagar es numérica', () => {
+  insomnia.expect(
+    migrated.credito.cuotaPagar,
+    `Cuota a pagar inválida: ${migrated.credito.cuotaPagar}`
+  ).to.match(/^-?\d+(\.\d+)?$/);
+});
+
+// =====================================================
+// CA-02: CAMPOS OPCIONALES / COALESCE
+// =====================================================
+
+insomnia.test(
+  'CA-02 - fechaPago nunca es null',
+  () => {
+    insomnia.expect(
+      migrated.credito.fechaPago,
+      'fechaPago debe ser una cadena vacía y no null'
+    ).to.be.a('string');
+  }
+);
+
+insomnia.test(
+  'CA-02 - cuotaPagar nunca es null',
+  () => {
+    insomnia.expect(
+      migrated.credito.cuotaPagar,
+      'cuotaPagar debe ser una cadena o número serializado'
+    ).to.be.a('string');
+  }
+);
+
+// =====================================================
+// HOMOLOGACIÓN DEL BLOQUE ERROR
+// =====================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - Código coincide',
+  migrated.error.codigo,
+  legacy.error.codigo,
+  'error.codigo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Mensaje exacto coincide',
+  migrated.error.mensaje,
+  legacy.error.mensaje,
+  'error.mensaje'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Mensaje funcional coincide',
+  normalizarMensaje(migrated.error.mensaje),
+  normalizarMensaje(legacy.error.mensaje),
+  'error.mensaje normalizado'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Mensaje negocio coincide',
+  migrated.error.mensajeNegocio,
+  legacy.error.mensajeNegocio,
+  'error.mensajeNegocio'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Tipo coincide',
+  migrated.error.tipo,
+  legacy.error.tipo,
+  'error.tipo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Recurso coincide',
+  migrated.error.recurso,
+  legacy.error.recurso,
+  'error.recurso'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Componente coincide',
+  migrated.error.componente,
+  legacy.error.componente,
+  'error.componente'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Backend coincide',
+  migrated.error.backend,
+  legacy.error.backend,
+  'error.backend'
+);
+
+// =====================================================
+// HOMOLOGACIÓN DEL CRÉDITO
+// =====================================================
+
+for (const field of Object.keys(legacy.credito)) {
+  assertEqual(
+    `HOMOLOGACIÓN - credito.${field} coincide`,
+    migrated.credito[field],
+    legacy.credito[field],
+    `credito.${field}`
+  );
+}
+
+// =====================================================
+// HOMOLOGACIÓN DE CUENTA DE DÉBITO
+// =====================================================
+
+for (const field of Object.keys(legacy.cuentaDebito)) {
+  assertEqual(
+    `HOMOLOGACIÓN - cuentaDebito.${field} coincide`,
+    migrated.cuentaDebito[field],
+    legacy.cuentaDebito[field],
+    `cuentaDebito.${field}`
+  );
+}
+
+// =====================================================
+// RESULTADO EN CONSOLA
+// =====================================================
+
+console.log(
+  'RESULTADO LEGADO:',
+  JSON.stringify(legacy, null, 2)
+);
+
+console.log(
+  'RESULTADO MIGRADO:',
+  JSON.stringify(migrated, null, 2)
+);
+
+EP-001 - ListarContactos01
+│   ├── 01 - Legado
+│   └── 02 - Migrado
+
+├── EP-002 - Identificación vacía
+│   ├── 01 - Legado
+│   └── 02 - Migrado
+│
+└── EP-003 - Estado inválido
+    ├── 01 - Legado
+    └── 02 - Migrado
+
+Content-Type: text/xml; charset=UTF-8
+Accept: text/xml
+SOAPAction: ListarContactos01
+
+LEGADO
+const xml2js = require('xml2js');
+
+const responseText = insomnia.response.text();
+const responseTime = insomnia.response.responseTime;
+const status = insomnia.response.status;
+
+const parseOptions = {
+  explicitArray: false,
+  trim: true,
+  normalize: false,
+  normalizeTags: false,
+  explicitRoot: true,
+  mergeAttrs: false
+};
+
+function removeNamespacePrefix(key) {
+  return key.includes(':')
+    ? key.substring(key.indexOf(':') + 1)
+    : key;
+}
+
+function removeNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(removeNamespaces);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const cleanObject = {};
+
+    for (const [key, childValue] of Object.entries(value)) {
+      cleanObject[removeNamespacePrefix(key)] =
+        removeNamespaces(childValue);
+    }
+
+    return cleanObject;
+  }
+
+  return value;
+}
+
+function findFirstByKey(value, searchedKey) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const element of value) {
+      const result = findFirstByKey(element, searchedKey);
+
+      if (result !== undefined) {
+        return result;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (const [key, childValue] of Object.entries(value)) {
+      if (removeNamespacePrefix(key) === searchedKey) {
+        return childValue;
+      }
+
+      const result = findFirstByKey(childValue, searchedKey);
+
+      if (result !== undefined) {
+        return result;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalarValue(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'object' && '_' in value) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+let parsedResponse;
+
+try {
+  parsedResponse = await xml2js.parseStringPromise(
+    responseText,
+    parseOptions
+  );
+} catch (error) {
+  throw new Error(
+    `No fue posible interpretar el XML legado: ${error.message}`
+  );
+}
+
+const normalizedResponse = removeNamespaces(parsedResponse);
+
+const errorBlock = findFirstByKey(
+  normalizedResponse,
+  'error'
+);
+
+const bodyOut = findFirstByKey(
+  normalizedResponse,
+  'bodyOut'
+);
+
+const contactosContainer = findFirstByKey(
+  normalizedResponse,
+  'contactos'
+);
+
+let contactos = [];
+
+if (
+  contactosContainer &&
+  contactosContainer.contacto !== undefined
+) {
+  contactos = Array.isArray(contactosContainer.contacto)
+    ? contactosContainer.contacto
+    : [contactosContainer.contacto];
+}
+
+const homologationSnapshot = {
+  http: {
+    status,
+    responseTime
+  },
+
+  error: {
+    codigo: scalarValue(errorBlock?.codigo),
+    mensaje: scalarValue(errorBlock?.mensaje),
+    mensajeNegocio: scalarValue(errorBlock?.mensajeNegocio),
+    tipo: scalarValue(errorBlock?.tipo),
+    recurso: scalarValue(errorBlock?.recurso),
+    componente: scalarValue(errorBlock?.componente),
+    backend: scalarValue(errorBlock?.backend)
+  },
+
+  bodyOut,
+
+  contactos,
+
+  cantidadContactos: contactos.length,
+
+  responseNormalized: normalizedResponse
+};
+
+insomnia.environment.set(
+  'EP001_LISTAR_CONTACTOS_LEGADO',
+  JSON.stringify(homologationSnapshot)
+);
+
+insomnia.test(
+  'LEGADO - HTTP 200',
+  () => {
+    insomnia.expect(
+      status,
+      `Se esperaba HTTP 200, pero el legado respondió ${status}`
+    ).to.eql(200);
+  }
+);
+
+insomnia.test(
+  'LEGADO - Tiempo menor al SLA',
+  () => {
+    const sla = Number(
+      insomnia.environment.get('sla_ms') || 800
+    );
+
+    insomnia.expect(
+      responseTime,
+      `El legado tardó ${responseTime} ms; SLA permitido: ${sla} ms`
+    ).to.be.below(sla);
+  }
+);
+
+insomnia.test(
+  'LEGADO - XML SOAP válido',
+  () => {
+    insomnia.expect(
+      findFirstByKey(normalizedResponse, 'Envelope'),
+      'No se encontró Envelope SOAP'
+    ).to.exist;
+
+    insomnia.expect(
+      findFirstByKey(normalizedResponse, 'Body'),
+      'No se encontró Body SOAP'
+    ).to.exist;
+  }
+);
+
+insomnia.test(
+  'LEGADO - Código funcional 0',
+  () => {
+    insomnia.expect(
+      homologationSnapshot.error.codigo,
+      `Código recibido: ${homologationSnapshot.error.codigo}`
+    ).to.eql('0');
+  }
+);
+
+insomnia.test(
+  'LEGADO - Tipo INFO',
+  () => {
+    insomnia.expect(
+      homologationSnapshot.error.tipo,
+      `Tipo recibido: ${homologationSnapshot.error.tipo}`
+    ).to.eql('INFO');
+  }
+);
+
+insomnia.test(
+  'LEGADO - BodyOut presente',
+  () => {
+    insomnia.expect(
+      bodyOut,
+      'El response legado no contiene bodyOut'
+    ).to.exist;
+  }
+);
+
+insomnia.test(
+  'LEGADO - Existen contactos',
+  () => {
+    insomnia.expect(
+      contactos.length,
+      'El response legado no contiene contactos'
+    ).to.be.greaterThan(0);
+  }
+);
+
+console.log(
+  'Snapshot legado guardado:',
+  JSON.stringify(homologationSnapshot, null, 2)
+);
+
+MIGRADO
+const xml2js = require('xml2js');
+const lodash = require('lodash');
+
+const responseText = insomnia.response.text();
+const responseTime = insomnia.response.responseTime;
+const status = insomnia.response.status;
+
+const parseOptions = {
+  explicitArray: false,
+  trim: true,
+  normalize: false,
+  normalizeTags: false,
+  explicitRoot: true,
+  mergeAttrs: false
+};
+
+function removeNamespacePrefix(key) {
+  return key.includes(':')
+    ? key.substring(key.indexOf(':') + 1)
+    : key;
+}
+
+function removeNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(removeNamespaces);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const cleanObject = {};
+
+    for (const [key, childValue] of Object.entries(value)) {
+      cleanObject[removeNamespacePrefix(key)] =
+        removeNamespaces(childValue);
+    }
+
+    return cleanObject;
+  }
+
+  return value;
+}
+
+function findFirstByKey(value, searchedKey) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const element of value) {
+      const result = findFirstByKey(element, searchedKey);
+
+      if (result !== undefined) {
+        return result;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (const [key, childValue] of Object.entries(value)) {
+      if (removeNamespacePrefix(key) === searchedKey) {
+        return childValue;
+      }
+
+      const result = findFirstByKey(childValue, searchedKey);
+
+      if (result !== undefined) {
+        return result;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalarValue(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'object' && '_' in value) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+function normalizeBusinessMessage(message) {
+  if (!message) {
+    return '';
+  }
+
+  return String(message)
+    .replace(/^TCSBRKR2_BP[:\-]/i, '')
+    .replace(/^ORQProductos0035:7012-/i, '')
+    .trim();
+}
+
+function normalizeEmptyValues(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizeEmptyValues);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const result = {};
+
+    for (const [key, childValue] of Object.entries(value)) {
+      result[key] = normalizeEmptyValues(childValue);
+    }
+
+    return result;
+  }
+
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  return value;
+}
+
+function removeDynamicFields(value) {
+  const copy = lodash.cloneDeep(value);
+
+  const dynamicFields = new Set([
+    'fechaHora',
+    'guid',
+    'sesion',
+    'unicidad',
+    'responseTime',
+    'timestamp',
+    'correlationId',
+    'traceId'
+  ]);
+
+  function walk(currentValue) {
+    if (Array.isArray(currentValue)) {
+      currentValue.forEach(walk);
+      return;
+    }
+
+    if (
+      currentValue === null ||
+      typeof currentValue !== 'object'
+    ) {
+      return;
+    }
+
+    for (const key of Object.keys(currentValue)) {
+      if (dynamicFields.has(removeNamespacePrefix(key))) {
+        delete currentValue[key];
+      } else {
+        walk(currentValue[key]);
+      }
+    }
+  }
+
+  walk(copy);
+  return copy;
+}
+
+function createContactKey(contact) {
+  return [
+    scalarValue(contact.codigo),
+    scalarValue(contact.numeroProducto),
+    scalarValue(contact.nombre)
+  ].join('|');
+}
+
+function sortContacts(contacts) {
+  return [...contacts].sort((left, right) =>
+    createContactKey(left).localeCompare(
+      createContactKey(right)
+    )
+  );
+}
+
+function assertEqual(
+  testName,
+  actual,
+  expected,
+  fieldDescription
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldDescription}. Esperado: ${JSON.stringify(expected)}. ` +
+      `Obtenido: ${JSON.stringify(actual)}`
+    ).to.deep.eql(expected);
+  });
+}
+
+const savedLegacyValue = insomnia.environment.get(
+  'EP001_LISTAR_CONTACTOS_LEGADO'
+);
+
+insomnia.test(
+  'MIGRADO - Existe ejecución previa del legado',
+  () => {
+    insomnia.expect(
+      savedLegacyValue,
+      'Ejecuta primero el request 01 - Legado'
+    ).to.be.a('string');
+
+    insomnia.expect(
+      savedLegacyValue?.length || 0,
+      'La variable del legado está vacía'
+    ).to.be.greaterThan(0);
+  }
+);
+
+if (!savedLegacyValue) {
+  throw new Error(
+    'No existe EP001_LISTAR_CONTACTOS_LEGADO. ' +
+    'Ejecuta primero el request legado.'
+  );
+}
+
+const legacy = JSON.parse(savedLegacyValue);
+
+let parsedMigrated;
+
+try {
+  parsedMigrated = await xml2js.parseStringPromise(
+    responseText,
+    parseOptions
+  );
+} catch (error) {
+  throw new Error(
+    `No fue posible interpretar el XML migrado: ${error.message}`
+  );
+}
+
+const migratedNormalized = removeNamespaces(parsedMigrated);
+
+const migratedError = findFirstByKey(
+  migratedNormalized,
+  'error'
+);
+
+const migratedBodyOut = findFirstByKey(
+  migratedNormalized,
+  'bodyOut'
+);
+
+const migratedContactsContainer = findFirstByKey(
+  migratedNormalized,
+  'contactos'
+);
+
+let migratedContacts = [];
+
+if (
+  migratedContactsContainer &&
+  migratedContactsContainer.contacto !== undefined
+) {
+  migratedContacts =
+    Array.isArray(migratedContactsContainer.contacto)
+      ? migratedContactsContainer.contacto
+      : [migratedContactsContainer.contacto];
+}
+
+const migratedSnapshot = {
+  http: {
+    status,
+    responseTime
+  },
+
+  error: {
+    codigo: scalarValue(migratedError?.codigo),
+    mensaje: scalarValue(migratedError?.mensaje),
+    mensajeNegocio: scalarValue(
+      migratedError?.mensajeNegocio
+    ),
+    tipo: scalarValue(migratedError?.tipo),
+    recurso: scalarValue(migratedError?.recurso),
+    componente: scalarValue(migratedError?.componente),
+    backend: scalarValue(migratedError?.backend)
+  },
+
+  bodyOut: migratedBodyOut,
+
+  contactos: migratedContacts,
+
+  cantidadContactos: migratedContacts.length,
+
+  responseNormalized: migratedNormalized
+};
+
+const sla = Number(
+  insomnia.environment.get('sla_ms') || 800
+);
+
+// ====================================================
+// VALIDACIONES HTTP Y RENDIMIENTO
+// ====================================================
+
+insomnia.test(
+  'MIGRADO - HTTP 200',
+  () => {
+    insomnia.expect(
+      status,
+      `Se esperaba HTTP 200, pero el migrado respondió ${status}`
+    ).to.eql(200);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Tiempo menor al SLA',
+  () => {
+    insomnia.expect(
+      responseTime,
+      `Tiempo migrado: ${responseTime} ms. SLA: ${sla} ms`
+    ).to.be.below(sla);
+  }
+);
+
+// ====================================================
+// VALIDACIONES DEL CONTRATO SOAP
+// ====================================================
+
+insomnia.test(
+  'MIGRADO - Envelope SOAP presente',
+  () => {
+    insomnia.expect(
+      findFirstByKey(migratedNormalized, 'Envelope'),
+      'No se encontró Envelope en el XML migrado'
+    ).to.exist;
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Body SOAP presente',
+  () => {
+    insomnia.expect(
+      findFirstByKey(migratedNormalized, 'Body'),
+      'No se encontró Body en el XML migrado'
+    ).to.exist;
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Response de ListarContactos01 presente',
+  () => {
+    insomnia.expect(
+      findFirstByKey(
+        migratedNormalized,
+        'ListarContactos01Response'
+      ),
+      'No se encontró ListarContactos01Response'
+    ).to.exist;
+  }
+);
+
+// ====================================================
+// HOMOLOGACIÓN ESTRICTA DEL BLOQUE ERROR
+// ====================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - Código coincide',
+  migratedSnapshot.error.codigo,
+  legacy.error.codigo,
+  'Diferencia en error.codigo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Mensaje exacto coincide',
+  migratedSnapshot.error.mensaje,
+  legacy.error.mensaje,
+  'Diferencia en error.mensaje'
+);
+
+insomnia.test(
+  'HOMOLOGACIÓN - Mensaje funcional coincide',
+  () => {
+    const migratedMessage = normalizeBusinessMessage(
+      migratedSnapshot.error.mensaje
+    );
+
+    const legacyMessage = normalizeBusinessMessage(
+      legacy.error.mensaje
+    );
+
+    insomnia.expect(
+      migratedMessage,
+      `Mensaje funcional diferente. ` +
+      `Legado normalizado: "${legacyMessage}". ` +
+      `Migrado normalizado: "${migratedMessage}".`
+    ).to.eql(legacyMessage);
+  }
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - MensajeNegocio coincide',
+  migratedSnapshot.error.mensajeNegocio,
+  legacy.error.mensajeNegocio,
+  'Diferencia en error.mensajeNegocio'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Tipo coincide',
+  migratedSnapshot.error.tipo,
+  legacy.error.tipo,
+  'Diferencia en error.tipo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Recurso coincide',
+  migratedSnapshot.error.recurso,
+  legacy.error.recurso,
+  'Diferencia en error.recurso'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Componente coincide',
+  migratedSnapshot.error.componente,
+  legacy.error.componente,
+  'Diferencia en error.componente'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Backend coincide',
+  migratedSnapshot.error.backend,
+  legacy.error.backend,
+  'Diferencia en error.backend'
+);
+
+// ====================================================
+// VALIDACIONES FUNCIONALES ESPERADAS
+// ====================================================
+
+assertEqual(
+  'REGLA - Código exitoso 0',
+  migratedSnapshot.error.codigo,
+  '0',
+  'El servicio migrado no retornó código exitoso'
+);
+
+assertEqual(
+  'REGLA - Tipo INFO',
+  migratedSnapshot.error.tipo,
+  'INFO',
+  'El servicio migrado no retornó tipo INFO'
+);
+
+insomnia.test(
+  'REGLA - Mensaje representa OK',
+  () => {
+    const normalizedMessage = normalizeBusinessMessage(
+      migratedSnapshot.error.mensaje
+    );
+
+    insomnia.expect(
+      normalizedMessage,
+      `Se esperaba mensaje funcional OK, ` +
+      `pero se obtuvo "${migratedSnapshot.error.mensaje}"`
+    ).to.eql('OK');
+  }
+);
+
+// ====================================================
+// HOMOLOGACIÓN DE CONTACTOS
+// ====================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - Cantidad de contactos coincide',
+  migratedSnapshot.cantidadContactos,
+  legacy.cantidadContactos,
+  'La cantidad de contactos es diferente'
+);
+
+const sortedLegacyContacts = sortContacts(
+  normalizeEmptyValues(legacy.contactos)
+);
+
+const sortedMigratedContacts = sortContacts(
+  normalizeEmptyValues(migratedSnapshot.contactos)
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - Contactos coinciden campo por campo',
+  sortedMigratedContacts,
+  sortedLegacyContacts,
+  'Los datos de los contactos presentan diferencias'
+);
+
+// ====================================================
+// VALIDACIÓN DE TIPOS Y CAMPOS OBLIGATORIOS
+// ====================================================
+
+migratedSnapshot.contactos.forEach((contact, index) => {
+  insomnia.test(
+    `CONTACTO ${index + 1} - codigo es texto numérico`,
+    () => {
+      const value = scalarValue(contact.codigo);
+
+      insomnia.expect(
+        value,
+        `contactos[${index}].codigo inválido: ${value}`
+      ).to.match(/^\d+$/);
+    }
+  );
+
+  insomnia.test(
+    `CONTACTO ${index + 1} - numeroProducto es texto`,
+    () => {
+      const value = scalarValue(contact.numeroProducto);
+
+      insomnia.expect(
+        value,
+        `contactos[${index}].numeroProducto está vacío`
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    `CONTACTO ${index + 1} - hashProducto es hexadecimal`,
+    () => {
+      const value = scalarValue(contact.hashProducto);
+
+      insomnia.expect(
+        value,
+        `contactos[${index}].hashProducto inválido: ${value}`
+      ).to.match(/^[0-9a-fA-F]+$/);
+    }
+  );
+
+  insomnia.test(
+    `CONTACTO ${index + 1} - nombre presente`,
+    () => {
+      const value = scalarValue(contact.nombre);
+
+      insomnia.expect(
+        value,
+        `contactos[${index}].nombre está vacío`
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    `CONTACTO ${index + 1} - tipoProducto válido`,
+    () => {
+      const value = scalarValue(contact.tipoProducto);
+
+      insomnia.expect(
+        value,
+        `contactos[${index}].tipoProducto inválido: ${value}`
+      ).to.be.oneOf([
+        'ahorro',
+        'corriente'
+      ]);
+    }
+  );
+
+  insomnia.test(
+    `CONTACTO ${index + 1} - entidad financiera válida`,
+    () => {
+      const code = scalarValue(
+        contact.entidadFinanciera?.codigo
+      );
+
+      const name = scalarValue(
+        contact.entidadFinanciera?.nombre
+      );
+
+      insomnia.expect(
+        code,
+        `contactos[${index}].entidadFinanciera.codigo inválido`
+      ).to.match(/^\d{4}$/);
+
+      insomnia.expect(
+        name,
+        `contactos[${index}].entidadFinanciera.nombre vacío`
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+});
+
+// ====================================================
+// COMPARACIÓN GENERAL NORMALIZADA
+// ====================================================
+
+const legacyGeneralComparison = removeDynamicFields(
+  normalizeEmptyValues(legacy.responseNormalized)
+);
+
+const migratedGeneralComparison = removeDynamicFields(
+  normalizeEmptyValues(
+    migratedSnapshot.responseNormalized
+  )
+);
+
+insomnia.test(
+  'HOMOLOGACIÓN - XML normalizado completo coincide',
+  () => {
+    insomnia.expect(
+      migratedGeneralComparison,
+      'La respuesta SOAP completa presenta diferencias. ' +
+      'Consulta la consola para observar ambos objetos.'
+    ).to.deep.eql(legacyGeneralComparison);
+  }
+);
+
+if (
+  !lodash.isEqual(
+    migratedGeneralComparison,
+    legacyGeneralComparison
+  )
+) {
+  console.log(
+    'RESPUESTA LEGADO NORMALIZADA:',
+    JSON.stringify(legacyGeneralComparison, null, 2)
+  );
+
+  console.log(
+    'RESPUESTA MIGRADO NORMALIZADA:',
+    JSON.stringify(migratedGeneralComparison, null, 2)
+  );
+}
+
+console.log(
+  'RESUMEN LEGADO:',
+  JSON.stringify(
+    {
+      error: legacy.error,
+      cantidadContactos: legacy.cantidadContactos
+    },
+    null,
+    2
+  )
+);
+
+console.log(
+  'RESUMEN MIGRADO:',
+  JSON.stringify(
+    {
+      error: migratedSnapshot.error,
+      cantidadContactos:
+        migratedSnapshot.cantidadContactos
+    },
+    null,
+    2
+  )
+);
