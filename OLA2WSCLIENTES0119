@@ -1,0 +1,1030 @@
+- Método HTTP: Siempre es POST para ambos servicios.
+- Endpoint Legado: http://10.60.128.85:2001/IntegrationBus/soap/WSClientes0119
+- Endpoint Migrado: https://tnd-msa-sp-wsclientes0119-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSClientes0119
+
+const xml2js = require('xml2js');
+
+// ======================================================
+// 1. CONFIGURACIÓN DEL SERVICIO
+// ======================================================
+
+const CONFIG = {
+  serviceName: 'WSClientes0119',
+  operationName: 'ConsultarSegmentoSubsegmento01',
+
+  legacyUrl:
+    'http://10.60.128.85:2001/IntegrationBus/soap/WSClientes0119',
+
+  migratedUrl:
+    'https://tnd-msa-sp-wsclientes0119-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSClientes0119',
+
+  slaMs: 800,
+
+  headers: {
+    'Content-Type': 'application/xml',
+    Accept: 'application/xml'
+  }
+};
+
+// ======================================================
+// 2. OBTENER EL XML DEL BODY ACTUAL DE INSOMNIA
+// ======================================================
+
+function getCurrentRequestBody() {
+  const body = insomnia.request.body;
+
+  if (!body) {
+    return '';
+  }
+
+  if (typeof body === 'string') {
+    return body;
+  }
+
+  if (typeof body.raw === 'string') {
+    return body.raw;
+  }
+
+  if (typeof body.text === 'string') {
+    return body.text;
+  }
+
+  return '';
+}
+
+const REQUEST_XML = getCurrentRequestBody();
+
+if (!REQUEST_XML || !REQUEST_XML.trim()) {
+  throw new Error(
+    'No se encontró el XML del request. ' +
+    'Configura el Body de Insomnia en modo XML o raw.'
+  );
+}
+
+// ======================================================
+// 3. ENVÍO DE REQUEST SOAP
+// ======================================================
+
+function sendSoapRequest(environmentName, url, xmlBody) {
+  const requestConfig = {
+    url,
+    method: 'POST',
+
+    header: {
+      'Content-Type': CONFIG.headers['Content-Type'],
+      Accept: CONFIG.headers.Accept
+    },
+
+    body: {
+      mode: 'raw',
+      raw: xmlBody
+    }
+  };
+
+  const startTime = Date.now();
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(
+      requestConfig,
+      async (error, response) => {
+        const elapsedMs = Date.now() - startTime;
+
+        if (error) {
+          reject(
+            new Error(
+              `${environmentName}: no fue posible ejecutar el request. ` +
+              `${error.message || error}`
+            )
+          );
+          return;
+        }
+
+        try {
+          const responseText =
+            await getResponseText(response);
+
+          resolve({
+            environmentName,
+            response,
+            responseText,
+            elapsedMs,
+            httpCode: getHttpCode(response)
+          });
+        } catch (readError) {
+          reject(
+            new Error(
+              `${environmentName}: no fue posible leer la respuesta. ` +
+              `${readError.message}`
+            )
+          );
+        }
+      }
+    );
+  });
+}
+
+async function getResponseText(response) {
+  if (
+    response &&
+    typeof response.text === 'function'
+  ) {
+    return await Promise.resolve(response.text());
+  }
+
+  if (
+    response &&
+    typeof response.body === 'string'
+  ) {
+    return response.body;
+  }
+
+  if (
+    response &&
+    response.body &&
+    typeof response.body.toString === 'function'
+  ) {
+    return response.body.toString('utf8');
+  }
+
+  return '';
+}
+
+function getHttpCode(response) {
+  if (
+    response &&
+    typeof response.code === 'number'
+  ) {
+    return response.code;
+  }
+
+  if (
+    response &&
+    typeof response.statusCode === 'number'
+  ) {
+    return response.statusCode;
+  }
+
+  const converted = Number(
+    response ? response.status : undefined
+  );
+
+  return Number.isNaN(converted)
+    ? undefined
+    : converted;
+}
+
+// ======================================================
+// 4. PARSING Y NORMALIZACIÓN DEL XML
+// ======================================================
+
+const XML_OPTIONS = {
+  explicitArray: false,
+  explicitRoot: true,
+  trim: true,
+  mergeAttrs: false,
+  emptyTag: ''
+};
+
+function removeNamespace(name) {
+  if (typeof name !== 'string') {
+    return name;
+  }
+
+  return name.includes(':')
+    ? name.split(':').pop()
+    : name;
+}
+
+function cleanNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(cleanNamespaces);
+  }
+
+  if (
+    value !== null &&
+    typeof value === 'object'
+  ) {
+    const cleanObject = {};
+
+    for (
+      const [key, childValue]
+      of Object.entries(value)
+    ) {
+      cleanObject[removeNamespace(key)] =
+        cleanNamespaces(childValue);
+    }
+
+    return cleanObject;
+  }
+
+  return value;
+}
+
+function findNode(value, searchedName) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findNode(
+        item,
+        searchedName
+      );
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (
+      const [key, childValue]
+      of Object.entries(value)
+    ) {
+      if (
+        removeNamespace(key) === searchedName
+      ) {
+        return childValue;
+      }
+
+      const found = findNode(
+        childValue,
+        searchedName
+      );
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalar(value) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return '';
+  }
+
+  if (
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(
+      value,
+      '_'
+    )
+  ) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+async function parseXml(xml, sourceName) {
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      `${sourceName}: el body de la respuesta está vacío.`
+    );
+  }
+
+  try {
+    const parsed =
+      await xml2js.parseStringPromise(
+        xml,
+        XML_OPTIONS
+      );
+
+    return cleanNamespaces(parsed);
+  } catch (error) {
+    throw new Error(
+      `${sourceName}: la respuesta no contiene XML válido. ` +
+      `${error.message}`
+    );
+  }
+}
+
+// ======================================================
+// 5. CONSTRUIR SNAPSHOT FUNCIONAL
+// ======================================================
+
+function buildResponseSnapshot(
+  normalizedXml,
+  sourceName
+) {
+  const responseNode = findNode(
+    normalizedXml,
+    'ConsultarSegmentoSubsegmento01Response'
+  );
+
+  const bodyOut = findNode(
+    normalizedXml,
+    'bodyOut'
+  );
+
+  const errorBlock = findNode(
+    normalizedXml,
+    'error'
+  );
+
+  return {
+    sourceName,
+
+    responseNodePresent:
+      Boolean(responseNode),
+
+    bodyOut: {
+      nombreCompleto: scalar(
+        bodyOut?.nombreCompleto
+      ),
+
+      segmento: scalar(
+        bodyOut?.segmento
+      ),
+
+      subsegmento: scalar(
+        bodyOut?.subsegmento
+      )
+    },
+
+    error: {
+      codigo: scalar(
+        errorBlock?.codigo
+      ),
+
+      mensaje: scalar(
+        errorBlock?.mensaje
+      ),
+
+      mensajeNegocio: scalar(
+        errorBlock?.mensajeNegocio
+      ),
+
+      tipo: scalar(
+        errorBlock?.tipo
+      ),
+
+      recurso: scalar(
+        errorBlock?.recurso
+      ),
+
+      componente: scalar(
+        errorBlock?.componente
+      ),
+
+      backend: scalar(
+        errorBlock?.backend
+      )
+    }
+  };
+}
+
+// ======================================================
+// 6. EXTRAER DATOS DEL REQUEST
+// ======================================================
+
+function buildRequestSnapshot(
+  normalizedRequest
+) {
+  const operation = findNode(
+    normalizedRequest,
+    'ConsultarSegmentoSubsegmento01'
+  );
+
+  const bodyIn = operation?.bodyIn ??
+    findNode(
+      normalizedRequest,
+      'bodyIn'
+    );
+
+  return {
+    operationPresent:
+      Boolean(operation),
+
+    numeroCuenta: scalar(
+      bodyIn?.numeroCuenta
+    ),
+
+    identificacion: scalar(
+      bodyIn?.identificacion
+    ),
+
+    tipoIdentificacion: scalar(
+      bodyIn?.tipoIdentificacion
+    )
+  };
+}
+
+// ======================================================
+// 7. ASSERTIONS REUTILIZABLES
+// ======================================================
+
+function assertEqual(
+  testName,
+  actual,
+  expected,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldPath} no coincide. ` +
+      `LEGADO=${JSON.stringify(expected)} | ` +
+      `MIGRADO=${JSON.stringify(actual)}`
+    ).to.deep.eql(expected);
+  });
+}
+
+function assertExpectedValue(
+  testName,
+  actual,
+  expected,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldPath} incumple la regla. ` +
+      `Esperado=${JSON.stringify(expected)} | ` +
+      `Obtenido=${JSON.stringify(actual)}`
+    ).to.eql(expected);
+  });
+}
+
+function assertNotEmpty(
+  testName,
+  actual,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldPath} está vacío o no fue retornado`
+    ).to.be.a('string').and.not.empty;
+  });
+}
+
+function normalizeBusinessMessage(message) {
+  if (!message) {
+    return '';
+  }
+
+  return String(message)
+    .replace(/^TCSBRKR\d*_BP[:\-]/i, '')
+    .replace(/^WSClientes0119[:\-]/i, '')
+    .replace(/^ConsultarSegmentoSubsegmento01[:\-]/i, '')
+    .replace(/^\d+[:\-]/, '')
+    .trim();
+}
+
+// ======================================================
+// 8. EJECUTAR EL DUAL RUN
+// ======================================================
+
+console.log(
+  '========================================'
+);
+console.log(
+  'INICIO DUAL RUN - WSClientes0119'
+);
+console.log(
+  '========================================'
+);
+
+const legacyExecution =
+  await sendSoapRequest(
+    'LEGADO',
+    CONFIG.legacyUrl,
+    REQUEST_XML
+  );
+
+const migratedExecution =
+  await sendSoapRequest(
+    'MIGRADO',
+    CONFIG.migratedUrl,
+    REQUEST_XML
+  );
+
+// ======================================================
+// 9. PARSEAR REQUEST Y RESPONSES
+// ======================================================
+
+const requestParsed = await parseXml(
+  REQUEST_XML,
+  'REQUEST'
+);
+
+const legacyParsed = await parseXml(
+  legacyExecution.responseText,
+  'LEGADO'
+);
+
+const migratedParsed = await parseXml(
+  migratedExecution.responseText,
+  'MIGRADO'
+);
+
+const requestData =
+  buildRequestSnapshot(requestParsed);
+
+const legacy =
+  buildResponseSnapshot(
+    legacyParsed,
+    'LEGADO'
+  );
+
+const migrated =
+  buildResponseSnapshot(
+    migratedParsed,
+    'MIGRADO'
+  );
+
+// ======================================================
+// 10. VALIDACIONES HTTP
+// ======================================================
+
+insomnia.test(
+  'LEGADO - HTTP 200',
+  () => {
+    insomnia.expect(
+      legacyExecution.httpCode,
+      `El legado respondió HTTP ` +
+      `${legacyExecution.httpCode}`
+    ).to.eql(200);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - HTTP 200',
+  () => {
+    insomnia.expect(
+      migratedExecution.httpCode,
+      `El migrado respondió HTTP ` +
+      `${migratedExecution.httpCode}`
+    ).to.eql(200);
+  }
+);
+
+// ======================================================
+// 11. VALIDACIONES DE TIEMPO
+// ======================================================
+
+insomnia.test(
+  'LEGADO - Tiempo menor al SLA',
+  () => {
+    insomnia.expect(
+      legacyExecution.elapsedMs,
+      `El legado tardó ` +
+      `${legacyExecution.elapsedMs} ms. ` +
+      `SLA configurado: ${CONFIG.slaMs} ms.`
+    ).to.be.below(CONFIG.slaMs);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Tiempo menor al SLA',
+  () => {
+    insomnia.expect(
+      migratedExecution.elapsedMs,
+      `El migrado tardó ` +
+      `${migratedExecution.elapsedMs} ms. ` +
+      `SLA configurado: ${CONFIG.slaMs} ms.`
+    ).to.be.below(CONFIG.slaMs);
+  }
+);
+
+// ======================================================
+// 12. VALIDACIÓN DE CONTRATO SOAP
+// ======================================================
+
+insomnia.test(
+  'REQUEST - Operación correcta',
+  () => {
+    insomnia.expect(
+      requestData.operationPresent,
+      'No se encontró ConsultarSegmentoSubsegmento01 ' +
+      'en el request SOAP'
+    ).to.eql(true);
+  }
+);
+
+insomnia.test(
+  'LEGADO - Response SOAP presente',
+  () => {
+    insomnia.expect(
+      legacy.responseNodePresent,
+      'El legado no devolvió ' +
+      'ConsultarSegmentoSubsegmento01Response'
+    ).to.eql(true);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Response SOAP presente',
+  () => {
+    insomnia.expect(
+      migrated.responseNodePresent,
+      'El migrado no devolvió ' +
+      'ConsultarSegmentoSubsegmento01Response'
+    ).to.eql(true);
+  }
+);
+
+// ======================================================
+// 13. COMPARACIÓN DEL BLOQUE ERROR
+// ======================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - error.codigo coincide',
+  migrated.error.codigo,
+  legacy.error.codigo,
+  'error.codigo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.mensaje exacto coincide',
+  migrated.error.mensaje,
+  legacy.error.mensaje,
+  'error.mensaje'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.mensaje funcional coincide',
+  normalizeBusinessMessage(
+    migrated.error.mensaje
+  ),
+  normalizeBusinessMessage(
+    legacy.error.mensaje
+  ),
+  'error.mensaje normalizado'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.mensajeNegocio coincide',
+  migrated.error.mensajeNegocio,
+  legacy.error.mensajeNegocio,
+  'error.mensajeNegocio'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.tipo coincide',
+  migrated.error.tipo,
+  legacy.error.tipo,
+  'error.tipo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.recurso coincide',
+  migrated.error.recurso,
+  legacy.error.recurso,
+  'error.recurso'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.componente coincide',
+  migrated.error.componente,
+  legacy.error.componente,
+  'error.componente'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.backend coincide',
+  migrated.error.backend,
+  legacy.error.backend,
+  'error.backend'
+);
+
+// ======================================================
+// 14. COMPARACIÓN DE LOS CAMPOS FUNCIONALES
+// CA-01
+// ======================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - nombreCompleto coincide',
+  migrated.bodyOut.nombreCompleto,
+  legacy.bodyOut.nombreCompleto,
+  'bodyOut.nombreCompleto'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - segmento coincide',
+  migrated.bodyOut.segmento,
+  legacy.bodyOut.segmento,
+  'bodyOut.segmento'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - subsegmento coincide',
+  migrated.bodyOut.subsegmento,
+  legacy.bodyOut.subsegmento,
+  'bodyOut.subsegmento'
+);
+
+// ======================================================
+// 15. VALIDACIÓN DINÁMICA SEGÚN EL ESCENARIO
+// ======================================================
+
+const isIdentificationEmpty =
+  requestData.identificacion === '';
+
+const isIdentificationTypeEmpty =
+  requestData.tipoIdentificacion === '';
+
+// ------------------------------------------------------
+// EP-002 / CA-03: IDENTIFICACIÓN VACÍA
+// ------------------------------------------------------
+
+if (isIdentificationEmpty) {
+  assertExpectedValue(
+    'CA-03 - Identificación vacía retorna código 1',
+    migrated.error.codigo,
+    '1',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Mensaje para identificación vacía',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'Valor del campo identificacion vacio o invalido',
+    'error.mensaje'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Identificación vacía retorna ERROR',
+    migrated.error.tipo,
+    'ERROR',
+    'error.tipo'
+  );
+}
+
+// ------------------------------------------------------
+// EP-003 / CA-03: TIPO IDENTIFICACIÓN VACÍO
+// ------------------------------------------------------
+
+else if (isIdentificationTypeEmpty) {
+  assertExpectedValue(
+    'CA-03 - Tipo identificación vacío retorna código 2',
+    migrated.error.codigo,
+    '2',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Mensaje para tipo identificación vacío',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'Valor del campo tipoIdentificacion vacio o invalido',
+    'error.mensaje'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Tipo identificación vacío retorna ERROR',
+    migrated.error.tipo,
+    'ERROR',
+    'error.tipo'
+  );
+}
+
+// ------------------------------------------------------
+// EP-001 / CA-01: CONSULTA NOMINAL
+// ------------------------------------------------------
+
+else if (
+  migrated.error.codigo === '0'
+) {
+  assertExpectedValue(
+    'CA-01 - Código exitoso 0',
+    migrated.error.codigo,
+    '0',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-01 - Mensaje funcional OK',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'OK',
+    'error.mensaje'
+  );
+
+  assertExpectedValue(
+    'CA-01 - Tipo INFO',
+    migrated.error.tipo,
+    'INFO',
+    'error.tipo'
+  );
+
+  assertNotEmpty(
+    'CA-01 - nombreCompleto informado',
+    migrated.bodyOut.nombreCompleto,
+    'bodyOut.nombreCompleto'
+  );
+
+  assertNotEmpty(
+    'CA-01 - segmento informado',
+    migrated.bodyOut.segmento,
+    'bodyOut.segmento'
+  );
+
+  assertNotEmpty(
+    'CA-01 - subsegmento informado',
+    migrated.bodyOut.subsegmento,
+    'bodyOut.subsegmento'
+  );
+
+  insomnia.test(
+    'CA-01 - segmento conserva ceros iniciales',
+    () => {
+      insomnia.expect(
+        migrated.bodyOut.segmento,
+        `Segmento inválido: ` +
+        `${migrated.bodyOut.segmento}`
+      ).to.match(/^\d+$/);
+    }
+  );
+
+  insomnia.test(
+    'CA-01 - subsegmento conserva ceros iniciales',
+    () => {
+      insomnia.expect(
+        migrated.bodyOut.subsegmento,
+        `Subsegmento inválido: ` +
+        `${migrated.bodyOut.subsegmento}`
+      ).to.match(/^\d+$/);
+    }
+  );
+}
+
+// ------------------------------------------------------
+// EP-004 / EP-005: ERROR BACKEND O NEGOCIO
+// ------------------------------------------------------
+
+else {
+  insomnia.test(
+    'CA-04/CA-05 - Código de error propagado',
+    () => {
+      insomnia.expect(
+        migrated.error.codigo,
+        'El código de error migrado está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    'CA-04/CA-05 - Mensaje de error propagado',
+    () => {
+      insomnia.expect(
+        migrated.error.mensaje,
+        'El mensaje de error migrado está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    'CA-04/CA-05 - Tipo de error informado',
+    () => {
+      insomnia.expect(
+        migrated.error.tipo,
+        'El tipo de error migrado está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    'CA-04/CA-05 - Backend informado',
+    () => {
+      insomnia.expect(
+        migrated.error.backend,
+        'El backend migrado está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+}
+
+// ======================================================
+// 16. VALIDACIÓN DEL CAMPO OPCIONAL NUMEROCUENTA
+// CA-02
+// ======================================================
+
+insomnia.test(
+  'CA-02 - numeroCuenta puede enviarse vacío',
+  () => {
+    /*
+     * El criterio indica que numeroCuenta es opcional.
+     * Si está vacío, no debe provocar por sí solo
+     * los códigos de validación 1 o 2.
+     */
+    if (
+      requestData.numeroCuenta === '' &&
+      requestData.identificacion !== '' &&
+      requestData.tipoIdentificacion !== ''
+    ) {
+      insomnia.expect(
+        ['1', '2'],
+        'numeroCuenta vacío no debe provocar ' +
+        'un error de identificación'
+      ).not.to.include(
+        migrated.error.codigo
+      );
+    }
+  }
+);
+
+// ======================================================
+// 17. RESUMEN EN CONSOLA
+// ======================================================
+
+console.log(
+  '========================================'
+);
+console.log(
+  'DATOS DEL REQUEST'
+);
+console.log(
+  '========================================'
+);
+console.log(
+  JSON.stringify(
+    requestData,
+    null,
+    2
+  )
+);
+
+console.log(
+  '========================================'
+);
+console.log(
+  'RESULTADO LEGADO'
+);
+console.log(
+  '========================================'
+);
+console.log(
+  JSON.stringify(
+    {
+      httpCode:
+        legacyExecution.httpCode,
+
+      elapsedMs:
+        legacyExecution.elapsedMs,
+
+      response:
+        legacy
+    },
+    null,
+    2
+  )
+);
+
+console.log(
+  '========================================'
+);
+console.log(
+  'RESULTADO MIGRADO'
+);
+console.log(
+  '========================================'
+);
+console.log(
+  JSON.stringify(
+    {
+      httpCode:
+        migratedExecution.httpCode,
+
+      elapsedMs:
+        migratedExecution.elapsedMs,
+
+      response:
+        migrated
+    },
+    null,
+    2
+  )
+);
+
+console.log(
+  '========================================'
+);
+console.log(
+  'FIN DUAL RUN - WSClientes0119'
+);
+console.log(
+  '========================================'
+);
