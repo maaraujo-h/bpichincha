@@ -1,0 +1,851 @@
+http://10.60.128.85:6000/IntegrationBus/soap/WSProductos0114
+
+const xml2js = require('xml2js');
+
+// ======================================================
+// CONFIGURACIÓN GENERAL
+// ======================================================
+
+const LEGACY_URL =
+  'http://10.60.128.85:6000/IntegrationBus/soap/WSProductos0114';
+
+const MIGRATED_URL =
+  'https://tpr-msa-sp-wsproductos0114-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSProductos0114';
+
+const SLA_MS = 800;
+
+const HEADERS = {
+  'Content-Type': 'application/xml',
+  Accept: 'application/xml'
+};
+
+// El mismo XML visible en Body será enviado a ambos servicios.
+const currentBody = insomnia.request.body;
+
+const SOAP_BODY =
+  currentBody && typeof currentBody.raw === 'string'
+    ? currentBody.raw
+    : '';
+
+if (!SOAP_BODY.trim()) {
+  throw new Error(
+    'No se encontró el XML SOAP. ' +
+    'Configura el Body del request en modo XML/raw.'
+  );
+}
+
+// ======================================================
+// FUNCIONES PARA ENVÍO HTTP
+// ======================================================
+
+function sendSoapRequest(url, xmlBody) {
+  const request = {
+    url,
+    method: 'POST',
+    header: HEADERS,
+    body: {
+      mode: 'raw',
+      raw: xmlBody
+    }
+  };
+
+  const startedAt = Date.now();
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(request, (error, response) => {
+      const elapsedMs = Date.now() - startedAt;
+
+      if (error) {
+        reject(
+          new Error(
+            `No fue posible consumir ${url}: ${error.message || error}`
+          )
+        );
+        return;
+      }
+
+      resolve({
+        response,
+        elapsedMs
+      });
+    });
+  });
+}
+
+async function getResponseText(response) {
+  if (response && typeof response.text === 'function') {
+    return await Promise.resolve(response.text());
+  }
+
+  if (response && typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (
+    response &&
+    response.body &&
+    typeof response.body.toString === 'function'
+  ) {
+    return response.body.toString('utf8');
+  }
+
+  return '';
+}
+
+function getHttpCode(response) {
+  if (typeof response.code === 'number') {
+    return response.code;
+  }
+
+  if (typeof response.statusCode === 'number') {
+    return response.statusCode;
+  }
+
+  const converted = Number(response.status);
+
+  return Number.isNaN(converted)
+    ? undefined
+    : converted;
+}
+
+// ======================================================
+// FUNCIONES PARA PROCESAR XML
+// ======================================================
+
+const XML_OPTIONS = {
+  explicitArray: false,
+  explicitRoot: true,
+  trim: true,
+  mergeAttrs: false,
+  emptyTag: ''
+};
+
+function removeNamespace(name) {
+  return name.includes(':')
+    ? name.split(':').pop()
+    : name;
+}
+
+function cleanNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(cleanNamespaces);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const result = {};
+
+    for (const [key, childValue] of Object.entries(value)) {
+      result[removeNamespace(key)] =
+        cleanNamespaces(childValue);
+    }
+
+    return result;
+  }
+
+  return value;
+}
+
+function findNode(value, searchedName) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findNode(item, searchedName);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (const [key, childValue] of Object.entries(value)) {
+      if (removeNamespace(key) === searchedName) {
+        return childValue;
+      }
+
+      const found = findNode(childValue, searchedName);
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalar(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(value, '_')
+  ) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+function toArray(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    return [];
+  }
+
+  return Array.isArray(value)
+    ? value
+    : [value];
+}
+
+async function parseXml(xml, environmentName) {
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      `El servicio ${environmentName} devolvió un body vacío.`
+    );
+  }
+
+  try {
+    const parsed = await xml2js.parseStringPromise(
+      xml,
+      XML_OPTIONS
+    );
+
+    return cleanNamespaces(parsed);
+  } catch (error) {
+    throw new Error(
+      `El response de ${environmentName} no es XML válido: ` +
+      `${error.message}`
+    );
+  }
+}
+
+// ======================================================
+// EXTRACCIÓN DE COTITULARES
+// ======================================================
+
+function normalizePerson(person) {
+  return {
+    cif: scalar(person && person.cif),
+    nombre: scalar(person && person.nombre),
+    identificacion: scalar(
+      person && person.identificacion
+    ),
+    tipoIdentificacion: scalar(
+      person && person.tipoIdentificacion
+    )
+  };
+}
+
+function extractCotitulares(bodyOut) {
+  if (!bodyOut || typeof bodyOut !== 'object') {
+    return [];
+  }
+
+  let candidates = [];
+
+  /*
+   * Estructuras soportadas:
+   *
+   * <cotitulares>
+   *   <cotitular>...</cotitular>
+   * </cotitulares>
+   *
+   * <cotitular>...</cotitular>
+   *
+   * <cotitular1>...</cotitular1>
+   * ...
+   * <cotitular14>...</cotitular14>
+   */
+
+  if (bodyOut.cotitulares) {
+    const container = bodyOut.cotitulares;
+
+    if (
+      container &&
+      typeof container === 'object' &&
+      container.cotitular !== undefined
+    ) {
+      candidates = candidates.concat(
+        toArray(container.cotitular)
+      );
+    } else {
+      candidates = candidates.concat(
+        toArray(container)
+      );
+    }
+  }
+
+  if (bodyOut.cotitular !== undefined) {
+    candidates = candidates.concat(
+      toArray(bodyOut.cotitular)
+    );
+  }
+
+  for (const [key, value] of Object.entries(bodyOut)) {
+    if (/^cotitular(?:[1-9]|1[0-4])$/i.test(key)) {
+      candidates = candidates.concat(toArray(value));
+    }
+  }
+
+  return candidates
+    .filter(item => item && typeof item === 'object')
+    .map(normalizePerson)
+    .filter(person => {
+      return (
+        person.cif !== '' ||
+        person.nombre !== '' ||
+        person.identificacion !== '' ||
+        person.tipoIdentificacion !== ''
+      );
+    });
+}
+
+// ======================================================
+// CREACIÓN DEL SNAPSHOT FUNCIONAL
+// ======================================================
+
+function buildSnapshot(normalizedXml) {
+  const responseNode =
+    findNode(
+      normalizedXml,
+      'ConsultarCotitularesCuenta01Response'
+    ) ||
+    findNode(
+      normalizedXml,
+      'ModificarTitularidadCuenta22Response'
+    );
+
+  const bodyOut = findNode(normalizedXml, 'bodyOut');
+  const errorBlock = findNode(normalizedXml, 'error');
+
+  const titular =
+    bodyOut &&
+    typeof bodyOut === 'object'
+      ? bodyOut.titular
+      : undefined;
+
+  return {
+    operation: responseNode
+      ? Object.keys(normalizedXml).join(',')
+      : '',
+
+    responsePresent: Boolean(responseNode),
+
+    error: {
+      codigo: scalar(errorBlock && errorBlock.codigo),
+      mensaje: scalar(errorBlock && errorBlock.mensaje),
+      mensajeNegocio: scalar(
+        errorBlock && errorBlock.mensajeNegocio
+      ),
+      tipo: scalar(errorBlock && errorBlock.tipo),
+      recurso: scalar(errorBlock && errorBlock.recurso),
+      componente: scalar(
+        errorBlock && errorBlock.componente
+      ),
+      backend: scalar(errorBlock && errorBlock.backend)
+    },
+
+    bodyOut: {
+      condicion: scalar(bodyOut && bodyOut.condicion),
+      cuentaCredito: scalar(
+        bodyOut && bodyOut.cuentaCredito
+      ),
+      observaciones: scalar(
+        bodyOut && bodyOut.observaciones
+      ),
+
+      titular: normalizePerson(titular),
+
+      cotitulares: extractCotitulares(bodyOut)
+    }
+  };
+}
+
+// ======================================================
+// UTILIDADES PARA ASSERTIONS
+// ======================================================
+
+function assertEqual(
+  testName,
+  actual,
+  expected,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldPath} no coincide. ` +
+      `LEGADO=${JSON.stringify(expected)} | ` +
+      `MIGRADO=${JSON.stringify(actual)}`
+    ).to.deep.eql(expected);
+  });
+}
+
+function assertNotEmpty(
+  testName,
+  value,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      value,
+      `${fieldPath} está vacío o no fue retornado`
+    ).to.be.a('string').and.not.empty;
+  });
+}
+
+// ======================================================
+// EJECUCIÓN DUAL RUN
+// ======================================================
+
+console.log('========================================');
+console.log('INICIO DUAL RUN WSProductos0114');
+console.log('========================================');
+
+const legacyExecution = await sendSoapRequest(
+  LEGACY_URL,
+  SOAP_BODY
+);
+
+const migratedExecution = await sendSoapRequest(
+  MIGRATED_URL,
+  SOAP_BODY
+);
+
+const legacyHttpCode =
+  getHttpCode(legacyExecution.response);
+
+const migratedHttpCode =
+  getHttpCode(migratedExecution.response);
+
+const legacyXml = await getResponseText(
+  legacyExecution.response
+);
+
+const migratedXml = await getResponseText(
+  migratedExecution.response
+);
+
+const legacyParsed = await parseXml(
+  legacyXml,
+  'LEGADO'
+);
+
+const migratedParsed = await parseXml(
+  migratedXml,
+  'MIGRADO'
+);
+
+const legacy = buildSnapshot(legacyParsed);
+const migrated = buildSnapshot(migratedParsed);
+
+// ======================================================
+// VALIDACIONES HTTP Y SLA
+// ======================================================
+
+insomnia.test('LEGADO - HTTP 200', () => {
+  insomnia.expect(
+    legacyHttpCode,
+    `El legado respondió HTTP ${legacyHttpCode}`
+  ).to.eql(200);
+});
+
+insomnia.test('MIGRADO - HTTP 200', () => {
+  insomnia.expect(
+    migratedHttpCode,
+    `El migrado respondió HTTP ${migratedHttpCode}`
+  ).to.eql(200);
+});
+
+insomnia.test('LEGADO - Tiempo menor a 800 ms', () => {
+  insomnia.expect(
+    legacyExecution.elapsedMs,
+    `El legado tardó ${legacyExecution.elapsedMs} ms. ` +
+    `SLA configurado: ${SLA_MS} ms.`
+  ).to.be.below(SLA_MS);
+});
+
+insomnia.test('MIGRADO - Tiempo menor a 800 ms', () => {
+  insomnia.expect(
+    migratedExecution.elapsedMs,
+    `El migrado tardó ${migratedExecution.elapsedMs} ms. ` +
+    `SLA configurado: ${SLA_MS} ms.`
+  ).to.be.below(SLA_MS);
+});
+
+insomnia.test(
+  'La operación SOAP está presente en ambas respuestas',
+  () => {
+    insomnia.expect(
+      legacy.responsePresent,
+      'El legado no devolvió el nodo Response esperado'
+    ).to.eql(true);
+
+    insomnia.expect(
+      migrated.responsePresent,
+      'El migrado no devolvió el nodo Response esperado'
+    ).to.eql(true);
+  }
+);
+
+// ======================================================
+// COMPARACIÓN ESTRICTA DEL BLOQUE ERROR
+// CA-01, CA-02, CA-03, CA-04, CA-05 y CA-06
+// ======================================================
+
+assertEqual(
+  'ERROR - codigo coincide',
+  migrated.error.codigo,
+  legacy.error.codigo,
+  'error.codigo'
+);
+
+assertEqual(
+  'ERROR - mensaje coincide exactamente',
+  migrated.error.mensaje,
+  legacy.error.mensaje,
+  'error.mensaje'
+);
+
+assertEqual(
+  'ERROR - mensajeNegocio coincide',
+  migrated.error.mensajeNegocio,
+  legacy.error.mensajeNegocio,
+  'error.mensajeNegocio'
+);
+
+assertEqual(
+  'ERROR - tipo coincide',
+  migrated.error.tipo,
+  legacy.error.tipo,
+  'error.tipo'
+);
+
+assertEqual(
+  'ERROR - recurso coincide',
+  migrated.error.recurso,
+  legacy.error.recurso,
+  'error.recurso'
+);
+
+assertEqual(
+  'ERROR - componente coincide',
+  migrated.error.componente,
+  legacy.error.componente,
+  'error.componente'
+);
+
+assertEqual(
+  'ERROR - backend coincide',
+  migrated.error.backend,
+  legacy.error.backend,
+  'error.backend'
+);
+
+// ======================================================
+// COMPARACIÓN DE CAMPOS FUNCIONALES DE BODYOUT
+// CA-01: Consulta de titular y cotitulares
+// ======================================================
+
+assertEqual(
+  'BODYOUT - condicion coincide',
+  migrated.bodyOut.condicion,
+  legacy.bodyOut.condicion,
+  'bodyOut.condicion'
+);
+
+assertEqual(
+  'BODYOUT - cuentaCredito coincide',
+  migrated.bodyOut.cuentaCredito,
+  legacy.bodyOut.cuentaCredito,
+  'bodyOut.cuentaCredito'
+);
+
+assertEqual(
+  'BODYOUT - observaciones coincide',
+  migrated.bodyOut.observaciones,
+  legacy.bodyOut.observaciones,
+  'bodyOut.observaciones'
+);
+
+// Titular principal
+
+assertEqual(
+  'TITULAR - cif coincide',
+  migrated.bodyOut.titular.cif,
+  legacy.bodyOut.titular.cif,
+  'bodyOut.titular.cif'
+);
+
+assertEqual(
+  'TITULAR - nombre coincide',
+  migrated.bodyOut.titular.nombre,
+  legacy.bodyOut.titular.nombre,
+  'bodyOut.titular.nombre'
+);
+
+assertEqual(
+  'TITULAR - identificacion coincide',
+  migrated.bodyOut.titular.identificacion,
+  legacy.bodyOut.titular.identificacion,
+  'bodyOut.titular.identificacion'
+);
+
+assertEqual(
+  'TITULAR - tipoIdentificacion coincide',
+  migrated.bodyOut.titular.tipoIdentificacion,
+  legacy.bodyOut.titular.tipoIdentificacion,
+  'bodyOut.titular.tipoIdentificacion'
+);
+
+// Cotitulares
+
+assertEqual(
+  'COTITULARES - cantidad coincide',
+  migrated.bodyOut.cotitulares.length,
+  legacy.bodyOut.cotitulares.length,
+  'bodyOut.cotitulares.length'
+);
+
+assertEqual(
+  'COTITULARES - datos coinciden en el mismo orden',
+  migrated.bodyOut.cotitulares,
+  legacy.bodyOut.cotitulares,
+  'bodyOut.cotitulares'
+);
+
+insomnia.test(
+  'COTITULARES - máximo 14 en legado',
+  () => {
+    insomnia.expect(
+      legacy.bodyOut.cotitulares.length,
+      `El legado retornó ` +
+      `${legacy.bodyOut.cotitulares.length} cotitulares`
+    ).to.be.at.most(14);
+  }
+);
+
+insomnia.test(
+  'COTITULARES - máximo 14 en migrado',
+  () => {
+    insomnia.expect(
+      migrated.bodyOut.cotitulares.length,
+      `El migrado retornó ` +
+      `${migrated.bodyOut.cotitulares.length} cotitulares`
+    ).to.be.at.most(14);
+  }
+);
+
+// ======================================================
+// VALIDACIONES SEGÚN EL ESCENARIO ENVIADO
+// ======================================================
+
+const parsedRequest = await parseXml(
+  SOAP_BODY,
+  'REQUEST'
+);
+
+const operationConsulta = findNode(
+  parsedRequest,
+  'ConsultarCotitularesCuenta01'
+);
+
+const operationModificacion = findNode(
+  parsedRequest,
+  'ModificarTitularidadCuenta22'
+);
+
+const requestCuenta = findNode(
+  parsedRequest,
+  'cuenta'
+);
+
+const inputNumero = scalar(
+  requestCuenta && requestCuenta.numero
+);
+
+const inputProducto = scalar(
+  requestCuenta && requestCuenta.producto
+);
+
+const inputAccion = scalar(
+  requestCuenta && requestCuenta.accion
+);
+
+// CA-03: obligatoriedad de consulta
+
+if (operationConsulta) {
+  if (inputNumero === '') {
+    assertEqual(
+      'CA-03 - Cuenta vacía retorna código 1',
+      migrated.error.codigo,
+      '1',
+      'error.codigo'
+    );
+
+    assertEqual(
+      'CA-03 - Mensaje de cuenta vacía',
+      migrated.error.mensaje,
+      'Valor del campo numero de cuenta vacío o inválido',
+      'error.mensaje'
+    );
+  } else if (inputProducto === '') {
+    assertEqual(
+      'CA-03 - Producto vacío retorna código 2',
+      migrated.error.codigo,
+      '2',
+      'error.codigo'
+    );
+
+    assertEqual(
+      'CA-03 - Mensaje de producto vacío',
+      migrated.error.mensaje,
+      'Valor del campo producto vacío o inválido',
+      'error.mensaje'
+    );
+  } else if (inputAccion === '') {
+    assertEqual(
+      'CA-03 - Acción vacía retorna código 3',
+      migrated.error.codigo,
+      '3',
+      'error.codigo'
+    );
+
+    assertEqual(
+      'CA-03 - Mensaje de acción vacía',
+      migrated.error.mensaje,
+      'Valor del campo accion vacío o inválido',
+      'error.mensaje'
+    );
+  } else if (migrated.error.codigo === '0') {
+    // CA-01: respuesta nominal.
+
+    assertEqual(
+      'CA-01 - Mensaje OK',
+      migrated.error.mensaje,
+      'OK',
+      'error.mensaje'
+    );
+
+    assertEqual(
+      'CA-01 - Tipo INFO',
+      migrated.error.tipo,
+      'INFO',
+      'error.tipo'
+    );
+
+    assertNotEmpty(
+      'CA-01 - CIF del titular presente',
+      migrated.bodyOut.titular.cif,
+      'bodyOut.titular.cif'
+    );
+
+    assertNotEmpty(
+      'CA-01 - Nombre del titular presente',
+      migrated.bodyOut.titular.nombre,
+      'bodyOut.titular.nombre'
+    );
+
+    assertNotEmpty(
+      'CA-01 - Identificación del titular presente',
+      migrated.bodyOut.titular.identificacion,
+      'bodyOut.titular.identificacion'
+    );
+
+    assertNotEmpty(
+      'CA-01 - Tipo de identificación presente',
+      migrated.bodyOut.titular.tipoIdentificacion,
+      'bodyOut.titular.tipoIdentificacion'
+    );
+  } else if (migrated.error.codigo === '4') {
+    // CA-05: cuenta sin relaciones.
+
+    assertEqual(
+      'CA-05 - Mensaje sin relaciones',
+      migrated.error.mensaje,
+      'No tiene relaciones de cotitular',
+      'error.mensaje'
+    );
+  }
+}
+
+// CA-04: obligatoriedad en modificación.
+
+if (
+  operationModificacion &&
+  (inputNumero === '' || inputNumero === '0')
+) {
+  assertEqual(
+    'CA-04 - CIF inválido retorna código 0001',
+    migrated.error.codigo,
+    '0001',
+    'error.codigo'
+  );
+
+  assertEqual(
+    'CA-04 - Mensaje CIF inválido',
+    migrated.error.mensaje,
+    'Valor del campo CIF vacío o inválido',
+    'error.mensaje'
+  );
+
+  assertEqual(
+    'CA-04 - Tipo ERROR',
+    migrated.error.tipo,
+    'ERROR',
+    'error.tipo'
+  );
+}
+
+// ======================================================
+// RESUMEN EN CONSOLA
+// ======================================================
+
+console.log('========================================');
+console.log('RESULTADO LEGADO');
+console.log('========================================');
+console.log(
+  JSON.stringify(
+    {
+      httpCode: legacyHttpCode,
+      elapsedMs: legacyExecution.elapsedMs,
+      data: legacy
+    },
+    null,
+    2
+  )
+);
+
+console.log('========================================');
+console.log('RESULTADO MIGRADO');
+console.log('========================================');
+console.log(
+  JSON.stringify(
+    {
+      httpCode: migratedHttpCode,
+      elapsedMs: migratedExecution.elapsedMs,
+      data: migrated
+    },
+    null,
+    2
+  )
+);
+
+console.log('========================================');
+console.log('FIN DUAL RUN');
+console.log('========================================');
