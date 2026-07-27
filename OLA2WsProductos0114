@@ -1,3 +1,49 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://bpichincha.com/servicios">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ser:ConsultarCotitularesCuenta01>
+         <headerIn>
+            <dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
+            <empresa>0010</empresa>
+            <canal>02</canal>
+            <medio>020002</medio>
+            <aplicacion>00647</aplicacion>
+            <agencia>197</agencia>
+            <tipoTransaccion>302000201</tipoTransaccion>
+            <geolocalizacion>1234</geolocalizacion>
+            <usuario>USINTERT</usuario>
+            <unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
+            <guid>59cae047abad47d5b683388a132fbddf</guid>
+            <fechaHora>202506251508450015</fechaHora>
+            <filler/>
+            <idioma>es-EC</idioma>
+            <sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
+            <ip>0.0.0.0</ip>
+            <idCliente>0801545674</idCliente>
+            <tipoIdCliente>0001</tipoIdCliente>
+            <!--Optional:-->
+            <bancs>
+               <teller>00070560</teller>
+               <terminal>1</terminal>
+               <institucion>0010</institucion>
+               <agencia>1</agencia>
+               <estacion>1</estacion>
+               <aplicacion/>
+               <canal/>
+            </bancs>
+         </headerIn>
+         <bodyIn>
+            <cuenta>
+               <numero>2212814388</numero>
+               <producto>DEP</producto>
+               <accion>1</accion>
+            </cuenta>
+         </bodyIn>
+      </ser:ConsultarCotitularesCuenta01>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+
 http://10.60.128.85:6000/IntegrationBus/soap/WSProductos0114
 
 const xml2js = require('xml2js');
