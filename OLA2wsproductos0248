@@ -1,3 +1,43 @@
+En Insomnia entra a:
+
+Headers
+
+y agrega estos dos:
+
+Content-Type: application/xml
+Accept: application/xml
+
+Si continúa el 405, cambia Content-Type por:
+
+Content-Type: text/xml; charset=UTF-8
+
+y agrega también:
+
+SOAPAction: ConsultarIntervinientesClientes02
+
+La configuración recomendada quedaría:
+
+Content-Type: text/xml; charset=UTF-8
+Accept: text/xml
+SOAPAction: ConsultarIntervinientesClientes02
+
+Además, revisa la URL. En tu captura aparece con:
+
+http://
+
+Prueba con:
+
+https://tnd-msa-sp-wsproductos0248-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSProductos0248
+
+Orden exacto de prueba:
+
+Cambia http:// por https://.
+Agrega los tres headers.
+Mantén el mismo Body.
+Ejecuta nuevamente.
+
+El Body no parece ser el problema; el 405 Method Not Allowed ocurre antes de que el servicio procese el XML.
+
 https://pichincha.atlassian.net/wiki/spaces/BPTPSRE/pages/6219431937/tnd-msa-sp-wsproductos0248
 
 const xml2js = require('xml2js');
