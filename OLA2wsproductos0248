@@ -1,3 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/"
+	xmlns:NS2="http://bpichincha.com/servicios">
+	<NS1:Body>
+		<NS2:ConsultarIntervinientesClientes02Response>
+			<headerOut>
+				<dispositivo>01010101010101010101010101010101</dispositivo>
+				<empresa>0010</empresa>
+				<canal>03</canal>
+				<medio>030006</medio>
+				<aplicacion>00663</aplicacion>
+				<agencia>0197</agencia>
+				<tipoTransaccion>302006301</tipoTransaccion>
+				<geolocalizacion>00000</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>UZhDOa2GXtkAK2/QovFagnnS+nQSGAF/SKyTIIv1axc=</unicidad>
+				<guid>3F2504E04F8911D39A0C0305E82C3302</guid>
+				<fechaHora>202412101002000042</fechaHora>
+				<filler></filler>
+				<idioma>es-EC</idioma>
+				<sesion>cd04048e-f48c-4336-a910-c7fcebba2a7b</sesion>
+				<ip>10.192.168.45</ip>
+				<idCliente>1718975301</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion></aplicacion>
+					<canal></canal>
+				</bancs>
+				<documento>
+					<fechaContable></fechaContable>
+					<numeroDocumento></numeroDocumento>
+					<journals>
+						<journal>
+							<valor></valor>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>9999</codigo>
+				<mensaje>BancsIntegrationException httpStatus=501, code=001, businessMessage=Error on: File [classpath:/bancs-definitions/064028.xml] not found in classpath</mensaje>
+				<mensajeNegocio></mensajeNegocio>
+				<tipo>ERROR</tipo>
+				<recurso>tnd-msa-sp-wsproductos0248/ConsultarIntervinientesClientes02</recurso>
+				<componente>tnd-msa-sp-wsproductos0248</componente>
+				<backend>00638</backend>
+			</error>
+		</NS2:ConsultarIntervinientesClientes02Response>
+	</NS1:Body>
+</NS1:Envelope>
+
+
+MIGRADO - HTTP 200 | error: AssertionError: expected 405 to deeply equal 200 | ACTUAL: 405 | EXPECTED: 200
+After-response Test (< 0.1 ms)
+FAIL
+MIGRADO - Response SOAP presente | error: AssertionError: expected false to deeply equal true | ACTUAL: false | EXPECTED: true
+After-response Test (< 0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.codigo coincide | error: AssertionError: expected '' to deeply equal '0' | ACTUAL: | EXPECTED: 0
+After-response Test (< 0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.mensaje exacto coincide | error: AssertionError: expected '' to deeply equal 'TCSBRKR1_BP-OK' | ACTUAL: | EXPECTED: TCSBRKR1_BP-OK
+After-response Test (< 0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.mensaje funcional coincide | error: AssertionError: expected '' to deeply equal 'OK' | ACTUAL: | EXPECTED: OK
+After-response Test (0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.tipo coincide | error: AssertionError: expected '' to deeply equal 'INFO' | ACTUAL: | EXPECTED: INFO
+After-response Test (< 0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.recurso coincide | error: AssertionError: expected '' to deeply equal 'WSProductos0248/ConsultarIntervinient…' | ACTUAL: | EXPECTED: WSProductos0248/ConsultarIntervinientesClientes02
+After-response Test (0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.componente coincide | error: AssertionError: expected '' to deeply equal 'WSProductos0248' | ACTUAL: | EXPECTED: WSProductos0248
+After-response Test (< 0.1 ms)
+FAIL
+HOMOLOGACIÓN - error.backend coincide | error: AssertionError: expected '' to deeply equal '00638' | ACTUAL: | EXPECTED: 00638
+After-response Test (< 0.1 ms)
+FAIL
+HOMOLOGACIÓN - numeroConfiguracion coincide | error: AssertionError: expected '' to deeply equal '1' | ACTUAL: | EXPECTED: 1
+After-response Test (< 0.1 ms)
+FAIL
+CA-06 - Código de error propagado | error: AssertionError: expected '' not to be empty | ACTUAL: | EXPECTED: undefined
+After-response Test (0.1 ms)
+FAIL
+CA-06 - Mensaje de error propagado | error: AssertionError: expected '' not to be empty | ACTUAL: | EXPECTED: undefined
+After-response Test (< 0.1 ms)
+FAIL
+CA-06 - Tipo informado | error: AssertionError: expected '' not to be empty | ACTUAL: | EXPECTED: undefined
+After-response Test (< 0.1 ms)
+FAIL
+CA-06 - Backend informado | error: AssertionError: expected '' not to be empty | ACTUAL: | EXPECTED: undefined
+After-response Test (0.1 ms)
+PASS
+LEGADO - HTTP 200
+After-response Test (0.8 ms)
+PASS
+LEGADO - Tiempo menor al SLA
+After-response Test (0.7 ms)
+PASS
+MIGRADO - Tiempo menor al SLA
+After-response Test (0.7 ms)
+PASS
+REQUEST - Operación correcta
+After-response Test (0.7 ms)
+PASS
+LEGADO - Response SOAP presente
+After-response Test (0.7 ms)
+PASS
+HOMOLOGACIÓN - error.mensajeNegocio coincide
+After-response Test (0.5 ms)
+PASS
+HOMOLOGACIÓN - grupo1 coincide
+After-response Test (0.4 ms)
+PASS
+HOMOLOGACIÓN - grupo2 coincide
+After-response Test (0.4 ms)
+PASS
+HOMOLOGACIÓN - grupo3 coincide
+After-response Test (0.4 ms)
+PASS
+HOMOLOGACIÓN - grupo4 coincide
+After-response Test (0.4 ms)
+PASS
+HOMOLOGACIÓN - grupo5 coincide
+After-response Test (0.4 ms)
+PASS
+HOMOLOGACIÓN - cantidad de intervinientes coincide
+After-response Test (0.3 ms)
+PASS
+HOMOLOGACIÓN - intervinientes coinciden campo por campo
+---------------------------------------------------------------------------
+
 En Insomnia entra a:
 
 Headers
