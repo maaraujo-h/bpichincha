@@ -1,0 +1,1156 @@
+https://pichincha.atlassian.net/wiki/spaces/BPTPSRE/pages/6219431937/tnd-msa-sp-wsproductos0248
+
+const xml2js = require('xml2js');
+
+// ======================================================
+// 1. CONFIGURACIÓN
+// ======================================================
+
+const CONFIG = {
+  serviceName: 'WSProductos0248',
+  operationName: 'ConsultarIntervinientesClientes02',
+
+  legacyUrl:
+    'http://10.60.128.85:6001/IntegrationBus/soap/WSProductos0248',
+
+  migratedUrl:
+    'http://tnd-msa-sp-wsproductos0248-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSProductos0248',
+
+  slaMs: 800,
+
+  headers: {
+    'Content-Type': 'application/xml',
+    Accept: 'application/xml'
+  }
+};
+
+// ======================================================
+// 2. OBTENER EL XML ACTUAL DEL BODY
+// ======================================================
+
+function getCurrentRequestBody() {
+  const body = insomnia.request.body;
+
+  if (!body) {
+    return '';
+  }
+
+  if (typeof body === 'string') {
+    return body;
+  }
+
+  if (typeof body.raw === 'string') {
+    return body.raw;
+  }
+
+  if (typeof body.text === 'string') {
+    return body.text;
+  }
+
+  return '';
+}
+
+const REQUEST_XML = getCurrentRequestBody();
+
+if (!REQUEST_XML || !REQUEST_XML.trim()) {
+  throw new Error(
+    'No se encontró el XML del request. ' +
+    'Configura el Body de Insomnia en modo XML/raw.'
+  );
+}
+
+// ======================================================
+// 3. ENVÍO SOAP
+// ======================================================
+
+function sendSoapRequest(environmentName, url, xmlBody) {
+  const requestConfig = {
+    url,
+    method: 'POST',
+
+    header: {
+      'Content-Type': CONFIG.headers['Content-Type'],
+      Accept: CONFIG.headers.Accept
+    },
+
+    body: {
+      mode: 'raw',
+      raw: xmlBody
+    }
+  };
+
+  const startedAt = Date.now();
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(
+      requestConfig,
+      async (error, response) => {
+        const elapsedMs = Date.now() - startedAt;
+
+        if (error) {
+          reject(
+            new Error(
+              `${environmentName}: error al ejecutar el request. ` +
+              `${error.message || error}`
+            )
+          );
+          return;
+        }
+
+        try {
+          const responseText = await getResponseText(
+            response
+          );
+
+          resolve({
+            environmentName,
+            response,
+            responseText,
+            elapsedMs,
+            httpCode: getHttpCode(response)
+          });
+        } catch (readError) {
+          reject(
+            new Error(
+              `${environmentName}: no fue posible leer el response. ` +
+              `${readError.message}`
+            )
+          );
+        }
+      }
+    );
+  });
+}
+
+async function getResponseText(response) {
+  if (
+    response &&
+    typeof response.text === 'function'
+  ) {
+    return await Promise.resolve(response.text());
+  }
+
+  if (
+    response &&
+    typeof response.body === 'string'
+  ) {
+    return response.body;
+  }
+
+  if (
+    response &&
+    response.body &&
+    typeof response.body.toString === 'function'
+  ) {
+    return response.body.toString('utf8');
+  }
+
+  return '';
+}
+
+function getHttpCode(response) {
+  if (
+    response &&
+    typeof response.code === 'number'
+  ) {
+    return response.code;
+  }
+
+  if (
+    response &&
+    typeof response.statusCode === 'number'
+  ) {
+    return response.statusCode;
+  }
+
+  const parsed = Number(
+    response ? response.status : undefined
+  );
+
+  return Number.isNaN(parsed)
+    ? undefined
+    : parsed;
+}
+
+// ======================================================
+// 4. PARSING Y NORMALIZACIÓN XML
+// ======================================================
+
+const XML_OPTIONS = {
+  explicitArray: false,
+  explicitRoot: true,
+  trim: true,
+  mergeAttrs: false,
+  emptyTag: ''
+};
+
+function removeNamespace(name) {
+  if (typeof name !== 'string') {
+    return name;
+  }
+
+  return name.includes(':')
+    ? name.split(':').pop()
+    : name;
+}
+
+function cleanNamespaces(value) {
+  if (Array.isArray(value)) {
+    return value.map(cleanNamespaces);
+  }
+
+  if (
+    value !== null &&
+    typeof value === 'object'
+  ) {
+    const result = {};
+
+    for (
+      const [key, childValue]
+      of Object.entries(value)
+    ) {
+      result[removeNamespace(key)] =
+        cleanNamespaces(childValue);
+    }
+
+    return result;
+  }
+
+  return value;
+}
+
+function findNode(value, searchedName) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findNode(
+        item,
+        searchedName
+      );
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (typeof value === 'object') {
+    for (
+      const [key, childValue]
+      of Object.entries(value)
+    ) {
+      if (
+        removeNamespace(key) === searchedName
+      ) {
+        return childValue;
+      }
+
+      const found = findNode(
+        childValue,
+        searchedName
+      );
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function scalar(value) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return '';
+  }
+
+  if (
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(
+      value,
+      '_'
+    )
+  ) {
+    return String(value._).trim();
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+function toArray(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    return [];
+  }
+
+  return Array.isArray(value)
+    ? value
+    : [value];
+}
+
+async function parseXml(xml, sourceName) {
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      `${sourceName}: el response está vacío.`
+    );
+  }
+
+  try {
+    const parsed =
+      await xml2js.parseStringPromise(
+        xml,
+        XML_OPTIONS
+      );
+
+    return cleanNamespaces(parsed);
+  } catch (error) {
+    throw new Error(
+      `${sourceName}: XML inválido. ${error.message}`
+    );
+  }
+}
+
+// ======================================================
+// 5. NORMALIZACIÓN DE GRUPOS E INTERVINIENTES
+// ======================================================
+
+function normalizeCifList(group) {
+  if (
+    group === undefined ||
+    group === null ||
+    group === ''
+  ) {
+    return [];
+  }
+
+  const rawCifs =
+    typeof group === 'object' &&
+    group.cif !== undefined
+      ? group.cif
+      : group;
+
+  return toArray(rawCifs)
+    .map(scalar)
+    .filter(value => value !== '');
+}
+
+function normalizeInterviniente(item) {
+  return {
+    cif: scalar(item?.cif),
+    nombre: scalar(item?.nombre),
+    identificacion: scalar(
+      item?.identificacion
+    ),
+    tipoIdentificacion: scalar(
+      item?.tipoIdentificacion
+    )
+  };
+}
+
+function normalizeIntervinientes(value) {
+  return toArray(value)
+    .filter(
+      item =>
+        item &&
+        typeof item === 'object'
+    )
+    .map(normalizeInterviniente);
+}
+
+// ======================================================
+// 6. CONSTRUIR SNAPSHOT DE RESPUESTA
+// ======================================================
+
+function buildResponseSnapshot(
+  normalizedXml,
+  sourceName
+) {
+  const responseNode = findNode(
+    normalizedXml,
+    'ConsultarIntervinientesClientes02Response'
+  );
+
+  const bodyOut = findNode(
+    normalizedXml,
+    'bodyOut'
+  );
+
+  const errorBlock = findNode(
+    normalizedXml,
+    'error'
+  );
+
+  const condicionesIntervinientes =
+    bodyOut?.condicionesIntervinientes;
+
+  const intervinientesBlock =
+    condicionesIntervinientes?.intervinientes;
+
+  const agrupaciones =
+    intervinientesBlock?.agrupaciones;
+
+  const intervinientes =
+    normalizeIntervinientes(
+      intervinientesBlock?.interviniente
+    );
+
+  return {
+    sourceName,
+
+    responseNodePresent:
+      Boolean(responseNode),
+
+    error: {
+      codigo: scalar(
+        errorBlock?.codigo
+      ),
+
+      mensaje: scalar(
+        errorBlock?.mensaje
+      ),
+
+      mensajeNegocio: scalar(
+        errorBlock?.mensajeNegocio
+      ),
+
+      tipo: scalar(
+        errorBlock?.tipo
+      ),
+
+      recurso: scalar(
+        errorBlock?.recurso
+      ),
+
+      componente: scalar(
+        errorBlock?.componente
+      ),
+
+      backend: scalar(
+        errorBlock?.backend
+      )
+    },
+
+    bodyOut: {
+      numeroConfiguracion: scalar(
+        intervinientesBlock?.numeroConfiguracion
+      ),
+
+      grupos: {
+        grupo1: normalizeCifList(
+          agrupaciones?.grupo1
+        ),
+
+        grupo2: normalizeCifList(
+          agrupaciones?.grupo2
+        ),
+
+        grupo3: normalizeCifList(
+          agrupaciones?.grupo3
+        ),
+
+        grupo4: normalizeCifList(
+          agrupaciones?.grupo4
+        ),
+
+        grupo5: normalizeCifList(
+          agrupaciones?.grupo5
+        )
+      },
+
+      intervinientes
+    }
+  };
+}
+
+// ======================================================
+// 7. EXTRAER DATOS DEL REQUEST
+// ======================================================
+
+function buildRequestSnapshot(
+  normalizedRequest
+) {
+  const operation = findNode(
+    normalizedRequest,
+    'ConsultarIntervinientesClientes02'
+  );
+
+  const bodyIn =
+    operation?.bodyIn ??
+    findNode(
+      normalizedRequest,
+      'bodyIn'
+    );
+
+  const condicion =
+    bodyIn?.condicion;
+
+  return {
+    operationPresent:
+      Boolean(operation),
+
+    cuenta: scalar(
+      bodyIn?.cuenta
+    ),
+
+    numeroCondicion: scalar(
+      condicion?.numeroCondicion
+    ),
+
+    funcion: scalar(
+      condicion?.funcion
+    ),
+
+    usuarioCif: scalar(
+      condicion?.usuarioCif
+    ),
+
+    numeroTransaccion: scalar(
+      condicion?.numeroTransaccion
+    )
+  };
+}
+
+// ======================================================
+// 8. ASSERTIONS REUTILIZABLES
+// ======================================================
+
+function assertEqual(
+  testName,
+  actual,
+  expected,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldPath} no coincide. ` +
+      `LEGADO=${JSON.stringify(expected)} | ` +
+      `MIGRADO=${JSON.stringify(actual)}`
+    ).to.deep.eql(expected);
+  });
+}
+
+function assertExpectedValue(
+  testName,
+  actual,
+  expected,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      actual,
+      `${fieldPath} incumple la regla. ` +
+      `Esperado=${JSON.stringify(expected)} | ` +
+      `Obtenido=${JSON.stringify(actual)}`
+    ).to.eql(expected);
+  });
+}
+
+function assertNotEmpty(
+  testName,
+  value,
+  fieldPath
+) {
+  insomnia.test(testName, () => {
+    insomnia.expect(
+      value,
+      `${fieldPath} está vacío o no fue retornado`
+    ).to.be.a('string').and.not.empty;
+  });
+}
+
+function normalizeBusinessMessage(message) {
+  if (!message) {
+    return '';
+  }
+
+  return String(message)
+    .replace(/^TCSBRKR\d*_BP[:\-]/i, '')
+    .replace(/^WSProductos0248[:\-]/i, '')
+    .replace(/^ConsultarIntervinientesClientes02[:\-]/i, '')
+    .replace(/^\d+[:\-]/, '')
+    .trim();
+}
+
+// ======================================================
+// 9. EJECUCIÓN DUAL RUN
+// ======================================================
+
+console.log(
+  '========================================'
+);
+console.log(
+  'INICIO DUAL RUN - WSProductos0248'
+);
+console.log(
+  '========================================'
+);
+
+const legacyExecution =
+  await sendSoapRequest(
+    'LEGADO',
+    CONFIG.legacyUrl,
+    REQUEST_XML
+  );
+
+const migratedExecution =
+  await sendSoapRequest(
+    'MIGRADO',
+    CONFIG.migratedUrl,
+    REQUEST_XML
+  );
+
+// ======================================================
+// 10. PARSEAR REQUEST Y RESPONSES
+// ======================================================
+
+const requestParsed = await parseXml(
+  REQUEST_XML,
+  'REQUEST'
+);
+
+const legacyParsed = await parseXml(
+  legacyExecution.responseText,
+  'LEGADO'
+);
+
+const migratedParsed = await parseXml(
+  migratedExecution.responseText,
+  'MIGRADO'
+);
+
+const requestData =
+  buildRequestSnapshot(requestParsed);
+
+const legacy =
+  buildResponseSnapshot(
+    legacyParsed,
+    'LEGADO'
+  );
+
+const migrated =
+  buildResponseSnapshot(
+    migratedParsed,
+    'MIGRADO'
+  );
+
+// ======================================================
+// 11. VALIDACIONES HTTP
+// ======================================================
+
+insomnia.test(
+  'LEGADO - HTTP 200',
+  () => {
+    insomnia.expect(
+      legacyExecution.httpCode,
+      `El legado respondió HTTP ` +
+      `${legacyExecution.httpCode}`
+    ).to.eql(200);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - HTTP 200',
+  () => {
+    insomnia.expect(
+      migratedExecution.httpCode,
+      `El migrado respondió HTTP ` +
+      `${migratedExecution.httpCode}`
+    ).to.eql(200);
+  }
+);
+
+// ======================================================
+// 12. VALIDACIONES DE TIEMPO
+// ======================================================
+
+insomnia.test(
+  'LEGADO - Tiempo menor al SLA',
+  () => {
+    insomnia.expect(
+      legacyExecution.elapsedMs,
+      `El legado tardó ` +
+      `${legacyExecution.elapsedMs} ms. ` +
+      `SLA: ${CONFIG.slaMs} ms.`
+    ).to.be.below(CONFIG.slaMs);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Tiempo menor al SLA',
+  () => {
+    insomnia.expect(
+      migratedExecution.elapsedMs,
+      `El migrado tardó ` +
+      `${migratedExecution.elapsedMs} ms. ` +
+      `SLA: ${CONFIG.slaMs} ms.`
+    ).to.be.below(CONFIG.slaMs);
+  }
+);
+
+// ======================================================
+// 13. VALIDACIÓN DEL CONTRATO SOAP
+// ======================================================
+
+insomnia.test(
+  'REQUEST - Operación correcta',
+  () => {
+    insomnia.expect(
+      requestData.operationPresent,
+      'No se encontró ' +
+      'ConsultarIntervinientesClientes02 en el request'
+    ).to.eql(true);
+  }
+);
+
+insomnia.test(
+  'LEGADO - Response SOAP presente',
+  () => {
+    insomnia.expect(
+      legacy.responseNodePresent,
+      'El legado no devolvió el nodo Response esperado'
+    ).to.eql(true);
+  }
+);
+
+insomnia.test(
+  'MIGRADO - Response SOAP presente',
+  () => {
+    insomnia.expect(
+      migrated.responseNodePresent,
+      'El migrado no devolvió el nodo Response esperado'
+    ).to.eql(true);
+  }
+);
+
+// ======================================================
+// 14. COMPARACIÓN DEL BLOQUE ERROR
+// ======================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - error.codigo coincide',
+  migrated.error.codigo,
+  legacy.error.codigo,
+  'error.codigo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.mensaje exacto coincide',
+  migrated.error.mensaje,
+  legacy.error.mensaje,
+  'error.mensaje'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.mensaje funcional coincide',
+  normalizeBusinessMessage(
+    migrated.error.mensaje
+  ),
+  normalizeBusinessMessage(
+    legacy.error.mensaje
+  ),
+  'error.mensaje normalizado'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.mensajeNegocio coincide',
+  migrated.error.mensajeNegocio,
+  legacy.error.mensajeNegocio,
+  'error.mensajeNegocio'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.tipo coincide',
+  migrated.error.tipo,
+  legacy.error.tipo,
+  'error.tipo'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.recurso coincide',
+  migrated.error.recurso,
+  legacy.error.recurso,
+  'error.recurso'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.componente coincide',
+  migrated.error.componente,
+  legacy.error.componente,
+  'error.componente'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - error.backend coincide',
+  migrated.error.backend,
+  legacy.error.backend,
+  'error.backend'
+);
+
+// ======================================================
+// 15. COMPARACIÓN FUNCIONAL CA-01
+// ======================================================
+
+assertEqual(
+  'HOMOLOGACIÓN - numeroConfiguracion coincide',
+  migrated.bodyOut.numeroConfiguracion,
+  legacy.bodyOut.numeroConfiguracion,
+  'bodyOut.numeroConfiguracion'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - grupo1 coincide',
+  migrated.bodyOut.grupos.grupo1,
+  legacy.bodyOut.grupos.grupo1,
+  'bodyOut.agrupaciones.grupo1'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - grupo2 coincide',
+  migrated.bodyOut.grupos.grupo2,
+  legacy.bodyOut.grupos.grupo2,
+  'bodyOut.agrupaciones.grupo2'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - grupo3 coincide',
+  migrated.bodyOut.grupos.grupo3,
+  legacy.bodyOut.grupos.grupo3,
+  'bodyOut.agrupaciones.grupo3'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - grupo4 coincide',
+  migrated.bodyOut.grupos.grupo4,
+  legacy.bodyOut.grupos.grupo4,
+  'bodyOut.agrupaciones.grupo4'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - grupo5 coincide',
+  migrated.bodyOut.grupos.grupo5,
+  legacy.bodyOut.grupos.grupo5,
+  'bodyOut.agrupaciones.grupo5'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - cantidad de intervinientes coincide',
+  migrated.bodyOut.intervinientes.length,
+  legacy.bodyOut.intervinientes.length,
+  'bodyOut.intervinientes.length'
+);
+
+assertEqual(
+  'HOMOLOGACIÓN - intervinientes coinciden campo por campo',
+  migrated.bodyOut.intervinientes,
+  legacy.bodyOut.intervinientes,
+  'bodyOut.intervinientes'
+);
+
+// ======================================================
+// 16. VALIDACIÓN DINÁMICA DE OBLIGATORIEDAD
+// CA-03
+// ======================================================
+
+const cuentaInvalida =
+  requestData.cuenta === '' ||
+  requestData.cuenta === '0';
+
+const numeroCondicionInvalido =
+  requestData.numeroCondicion === '' ||
+  requestData.numeroCondicion === '0';
+
+const funcionInvalida =
+  requestData.funcion === '' ||
+  requestData.funcion === '0';
+
+const usuarioCifInvalido =
+  requestData.usuarioCif === '' ||
+  requestData.usuarioCif === '0';
+
+if (cuentaInvalida) {
+  assertExpectedValue(
+    'CA-03 - Cuenta inválida retorna 0001',
+    migrated.error.codigo,
+    '0001',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Mensaje cuenta inválida',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'Valor del campo cuenta vacío o inválido',
+    'error.mensaje'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Cuenta inválida retorna ERROR',
+    migrated.error.tipo,
+    'ERROR',
+    'error.tipo'
+  );
+}
+
+else if (numeroCondicionInvalido) {
+  assertExpectedValue(
+    'CA-03 - numeroCondicion inválido retorna 0002',
+    migrated.error.codigo,
+    '0002',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Mensaje numeroCondicion inválido',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'Valor del campo numeroCondicion vacío o inválido',
+    'error.mensaje'
+  );
+}
+
+else if (funcionInvalida) {
+  assertExpectedValue(
+    'CA-03 - funcion inválida retorna 0002',
+    migrated.error.codigo,
+    '0002',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Mensaje funcion inválida',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'Valor del campo funcion vacío o inválido',
+    'error.mensaje'
+  );
+}
+
+else if (usuarioCifInvalido) {
+  assertExpectedValue(
+    'CA-03 - usuarioCif inválido retorna 0002',
+    migrated.error.codigo,
+    '0002',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-03 - Mensaje usuarioCif inválido',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'Valor del campo usuarioCif vacío o inválido',
+    'error.mensaje'
+  );
+}
+
+// ======================================================
+// 17. VALIDACIÓN NOMINAL
+// ======================================================
+
+else if (migrated.error.codigo === '0') {
+  assertExpectedValue(
+    'CA-01 - Código exitoso 0',
+    migrated.error.codigo,
+    '0',
+    'error.codigo'
+  );
+
+  assertExpectedValue(
+    'CA-01 - Mensaje funcional OK',
+    normalizeBusinessMessage(
+      migrated.error.mensaje
+    ),
+    'OK',
+    'error.mensaje'
+  );
+
+  assertExpectedValue(
+    'CA-01 - Tipo INFO',
+    migrated.error.tipo,
+    'INFO',
+    'error.tipo'
+  );
+
+  assertNotEmpty(
+    'CA-01 - numeroConfiguracion informado',
+    migrated.bodyOut.numeroConfiguracion,
+    'bodyOut.numeroConfiguracion'
+  );
+
+  insomnia.test(
+    'CA-01 - Existe al menos un interviniente',
+    () => {
+      insomnia.expect(
+        migrated.bodyOut.intervinientes.length,
+        'No se retornaron intervinientes'
+      ).to.be.greaterThan(0);
+    }
+  );
+
+  migrated.bodyOut.intervinientes.forEach(
+    (item, index) => {
+      assertNotEmpty(
+        `CA-01 - Interviniente ${index + 1}: CIF informado`,
+        item.cif,
+        `intervinientes[${index}].cif`
+      );
+
+      assertNotEmpty(
+        `CA-01 - Interviniente ${index + 1}: identificación informada`,
+        item.identificacion,
+        `intervinientes[${index}].identificacion`
+      );
+
+      assertNotEmpty(
+        `CA-01 - Interviniente ${index + 1}: tipo identificación informado`,
+        item.tipoIdentificacion,
+        `intervinientes[${index}].tipoIdentificacion`
+      );
+    }
+  );
+}
+
+// ======================================================
+// 18. PROPAGACIÓN DE ERRORES CA-06
+// ======================================================
+
+else {
+  insomnia.test(
+    'CA-06 - Código de error propagado',
+    () => {
+      insomnia.expect(
+        migrated.error.codigo,
+        'El código de error está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    'CA-06 - Mensaje de error propagado',
+    () => {
+      insomnia.expect(
+        migrated.error.mensaje,
+        'El mensaje de error está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    'CA-06 - Tipo informado',
+    () => {
+      insomnia.expect(
+        migrated.error.tipo,
+        'El tipo de error está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+
+  insomnia.test(
+    'CA-06 - Backend informado',
+    () => {
+      insomnia.expect(
+        migrated.error.backend,
+        'El backend está vacío'
+      ).to.be.a('string').and.not.empty;
+    }
+  );
+}
+
+// ======================================================
+// 19. RESUMEN EN CONSOLA
+// ======================================================
+
+console.log(
+  '========================================'
+);
+console.log('DATOS DEL REQUEST');
+console.log(
+  '========================================'
+);
+console.log(
+  JSON.stringify(
+    requestData,
+    null,
+    2
+  )
+);
+
+console.log(
+  '========================================'
+);
+console.log('RESULTADO LEGADO');
+console.log(
+  '========================================'
+);
+console.log(
+  JSON.stringify(
+    {
+      httpCode:
+        legacyExecution.httpCode,
+
+      elapsedMs:
+        legacyExecution.elapsedMs,
+
+      response:
+        legacy
+    },
+    null,
+    2
+  )
+);
+
+console.log(
+  '========================================'
+);
+console.log('RESULTADO MIGRADO');
+console.log(
+  '========================================'
+);
+console.log(
+  JSON.stringify(
+    {
+      httpCode:
+        migratedExecution.httpCode,
+
+      elapsedMs:
+        migratedExecution.elapsedMs,
+
+      response:
+        migrated
+    },
+    null,
+    2
+  )
+);
+
+console.log(
+  '========================================'
+);
+console.log(
+  'FIN DUAL RUN - WSProductos0248'
+);
+console.log(
+  '========================================'
+);
