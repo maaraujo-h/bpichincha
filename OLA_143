@@ -1,3 +1,36 @@
+Así el script ya no buscará ninguna configuración en Environments.
+
+También cambia esta parte
+
+Dentro de getCurrentRequestXml(), reemplaza toda la función por:
+
+function getCurrentRequestXml() {
+  const body = insomnia.request.body;
+
+  if (body && typeof body.raw === 'string') {
+    return body.raw;
+  }
+
+  if (body && typeof body.text === 'string') {
+    return body.text;
+  }
+
+  return '';
+}
+
+Después:
+
+Guarda el script.
+Verifica que el XML continúe en Body → XML.
+Confirma individualmente que Legado responda.
+Activa el punto verde de After-response.
+Presiona Send.
+
+Por ahora deja:
+
+const EXPECTED_MODE = 'COMPARE_ONLY';
+
+Eso hará únicamente la comparación entre Legado y Migrado, sin exigir todavía un código funcional específico.
 const LEGACY_URL =
   'http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request';
 
