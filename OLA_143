@@ -1,3 +1,50 @@
+Corrige la variable del ambiente
+
+En Insomnia abre Manage Environments y coloca:
+
+{
+  "dualRunMigratedUrl": "http://tpr-msa-sp-wsproductos0143.apps.ocpdev.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request",
+  "dualRunLegacyUrl": "http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request",
+  "dualRunExpectedMode": "COMPARE_ONLY"
+}
+
+Es importante modificar la variable porque esta instrucción:
+
+insomnia.environment.get('dualRunMigratedUrl') || 'URL...'
+
+utiliza primero el valor del ambiente. Aunque cambies la URL escrita en el código, si la variable conserva ocptest, el script seguirá llamando al endpoint equivocado.
+
+Comprueba también el código
+
+Debe quedar exactamente así:
+
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'http://tpr-msa-sp-wsproductos0143.apps.ocpdev.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+Siguiente comprobación: Legado
+
+Antes de activar nuevamente el Dual Run, ejecuta individualmente:
+
+http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request
+
+También debe devolver:
+
+200 OK
+
+y una respuesta que comience con:
+
+<?xml version="1.0"?>
+
+Si Migrado responde XML pero Legado devuelve texto como Error..., el parser continuará mostrando Char: E.
+
+En resumen:
+
+Migrado ocpdev: confirmado, funciona.
+Migrado ocptest: no debes usarlo para esta ejecución.
+Falta confirmar que Legado también responda XML.
+Después activa nuevamente After-response y ejecuta el Dual Run.
+
+-----------------------
 1. Corrige el endpoint migrado
 
 En el código cambia:
