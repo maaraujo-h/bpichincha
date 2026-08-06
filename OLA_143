@@ -1,0 +1,433 @@
+Dual Run SOAP – WSProductos0143 / consultarCreditoDesembolsoSFI01
+1. Configuración en Insomnia
+Crear una petición auxiliar en la colección. Abrir Scripts > After-response y pegar el script de la sección 2. La petición auxiliar solo inicia la ejecución; el script envía consecutivamente el mismo XML a Legado y Migrado.
+Variables opcionales del ambiente:
+```json
+{
+  "dualRunLegacyUrl": "http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request",
+  "dualRunMigratedUrl": "http://tpr-msa-sp-wsproductos0143.apps.ocptest.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request",
+  "dualRunSoapAction": "",
+  "dualRunRequestXml": "PEGAR_AQUI_EL_XML_DEL_CASO",
+  "dualRunExpectedMode": "SUCCESS",
+  "dualRunExpectedField": "identificacion"
+}
+```
+Modos disponibles:
+`SUCCESS`: acepta `codigo=0` o `codigo=9696`, exige `bodyOut.credito` informado y backend `00633`.
+`VALIDATION_ERROR`: exige `codigo=1` y el mensaje del campo configurado en `dualRunExpectedField`.
+`BUSINESS_ERROR`: exige código distinto de `0/9696`, `tipo=ERROR`, backend `00633` y el recurso funcional indicado en el CA-04.
+`TECHNICAL_ERROR`: exige `codigo=9999` y backend `00650`.
+`SOAP_FAULT`: exige Fault en ambos ambientes.
+`SOAP_FAULT_OR_9999`: admite cualquiera de los dos resultados descritos ambiguamente en EP-003, pero exige paridad entre ambientes.
+`COMPARE_ONLY`: compara sin imponer un resultado funcional adicional.
+2. Script JavaScript para After-response / Tests
+```javascript
+const xml2js = require('xml2js');
+
+const LEGACY_URL =
+  insomnia.environment.get('dualRunLegacyUrl') ||
+  'http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request';
+
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'http://tpr-msa-sp-wsproductos0143.apps.ocptest.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
+const SOAP_ACTION = insomnia.environment.get('dualRunSoapAction') || '';
+const EXPECTED_MODE =
+  insomnia.environment.get('dualRunExpectedMode') || 'COMPARE_ONLY';
+const EXPECTED_FIELD =
+  insomnia.environment.get('dualRunExpectedField') || 'identificacion';
+
+const DEFAULT_REQUEST_XML = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:ser="http://bpichincha.com/servicios">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ser:consultarCreditoDesembolsoSFI01>
+      <headerIn>
+        <dispositivo>IOS-E9ED621A-27BB-410E-8609-6D9EE062391C</dispositivo>
+        <empresa>0010</empresa>
+        <canal>03</canal>
+        <medio>030006</medio>
+        <aplicacion>00663</aplicacion>
+        <agencia></agencia>
+        <tipoTransaccion>201008702</tipoTransaccion>
+        <geolocalizacion>-2.1440455863586054,-79.87843994778339</geolocalizacion>
+        <usuario>USINTERT</usuario>
+        <unicidad>96bf3d6246516de36bfa047606ceceb57beec20fb33f72192d84d849e7fda7a1</unicidad>
+        <guid>c575b948dae54be0a00204de8f4613b4</guid>
+        <fechaHora>202606161350120912</fechaHora>
+        <filler>IOS-E9ED621A-27BB-410E-8609-6D9EE062391C|--|02:00:00:00:00:00|iOS|18.7.8|Apple|iPhone</filler>
+        <idioma>es-EC</idioma>
+        <sesion>7946c1ed-e473-41bd-95e0-a426ebb4d119</sesion>
+        <ip>190.63.254.2</ip>
+        <idCliente>1203244080</idCliente>
+        <tipoIdCliente>0001</tipoIdCliente>
+      </headerIn>
+      <bodyIn>
+        <tipoIdentificacion>0001</tipoIdentificacion>
+        <identificacion>0906970447</identificacion>
+        <endeudamientoMicro>0</endeudamientoMicro>
+        <canalDSMBL>DGAG</canalDSMBL>
+      </bodyIn>
+    </ser:consultarCreditoDesembolsoSFI01>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+const REQUEST_XML =
+  insomnia.environment.get('dualRunRequestXml') || DEFAULT_REQUEST_XML;
+
+function sendSoap(url, xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml, application/soap+xml'
+  };
+
+  if (SOAP_ACTION) headers.SOAPAction = SOAP_ACTION;
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(
+      {
+        url,
+        method: 'POST',
+        header: headers,
+        body: { mode: 'raw', raw: xml }
+      },
+      (error, response) => {
+        if (error) return reject(error);
+        resolve(response);
+      }
+    );
+  });
+}
+
+function responseText(response) {
+  if (typeof response.body === 'string') return response.body;
+  if (response.body && typeof response.body.toString === 'function') {
+    return response.body.toString('utf8');
+  }
+  if (typeof response.data === 'string') return response.data;
+  throw new Error('Insomnia no entregó el body como texto.');
+}
+
+function parseXml(xml) {
+  return new Promise((resolve, reject) => {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        trim: false,
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      (error, result) => (error ? reject(error) : resolve(result))
+    );
+  });
+}
+
+function findFirstByKey(node, searchedKey) {
+  if (!node || typeof node !== 'object') return undefined;
+  if (Object.prototype.hasOwnProperty.call(node, searchedKey)) {
+    return node[searchedKey];
+  }
+
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findFirstByKey(item, searchedKey);
+        if (found !== undefined) return found;
+      }
+    } else if (value && typeof value === 'object') {
+      const found = findFirstByKey(value, searchedKey);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
+function scalar(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, '_')) {
+    return String(value._);
+  }
+  return '';
+}
+
+function readPath(object, path) {
+  const value = path.split('.').reduce(
+    (current, key) => (current == null ? undefined : current[key]),
+    object
+  );
+  return scalar(value);
+}
+
+function normalizeNode(value) {
+  if (value === undefined || value === null) return '';
+  if (Array.isArray(value)) return value.map(normalizeNode);
+  if (typeof value !== 'object') return String(value);
+
+  const result = {};
+  Object.keys(value)
+    .filter(key => key !== '$')
+    .sort()
+    .forEach(key => {
+      result[key] = normalizeNode(value[key]);
+    });
+  return result;
+}
+
+function extractComparable(parsedXml, httpStatus) {
+  const error = findFirstByKey(parsedXml, 'error');
+  const bodyOut = findFirstByKey(parsedXml, 'bodyOut');
+  const credito = bodyOut ? findFirstByKey(bodyOut, 'credito') : undefined;
+  const fault = findFirstByKey(parsedXml, 'Fault');
+
+  return {
+    httpStatus: Number(httpStatus),
+    responseKind: fault
+      ? 'SOAP_FAULT'
+      : error
+        ? 'FUNCTIONAL_RESPONSE'
+        : 'UNKNOWN',
+
+    'error.codigo': readPath(error, 'codigo'),
+    'error.mensaje': readPath(error, 'mensaje'),
+    'error.mensajeNegocio': readPath(error, 'mensajeNegocio'),
+    'error.tipo': readPath(error, 'tipo'),
+    'error.recurso': readPath(error, 'recurso'),
+    'error.componente': readPath(error, 'componente'),
+    'error.backend': readPath(error, 'backend'),
+
+    creditoPresent: credito !== undefined && credito !== null,
+    credito: normalizeNode(credito),
+
+    'fault.faultcode': readPath(fault, 'faultcode'),
+    'fault.faultstring': readPath(fault, 'faultstring'),
+    'fault.detail': normalizeNode(fault && fault.detail)
+  };
+}
+
+const ERROR_FIELDS = [
+  'error.codigo',
+  'error.mensaje',
+  'error.mensajeNegocio',
+  'error.tipo',
+  'error.recurso',
+  'error.componente',
+  'error.backend'
+];
+
+const FAULT_FIELDS = [
+  'fault.faultcode',
+  'fault.faultstring',
+  'fault.detail'
+];
+
+// Ejecución consecutiva: primero Legado y después Migrado.
+const legacyResponse = await sendSoap(LEGACY_URL, REQUEST_XML);
+const migratedResponse = await sendSoap(MIGRATED_URL, REQUEST_XML);
+
+const legacy = extractComparable(
+  await parseXml(responseText(legacyResponse)),
+  legacyResponse.code
+);
+const migrated = extractComparable(
+  await parseXml(responseText(migratedResponse)),
+  migratedResponse.code
+);
+
+// No se imprime el bloque credito: puede contener información financiera sensible.
+console.log(
+  'DUAL RUN - LEGADO:',
+  JSON.stringify({
+    httpStatus: legacy.httpStatus,
+    responseKind: legacy.responseKind,
+    codigo: legacy['error.codigo'],
+    mensaje: legacy['error.mensaje'],
+    tipo: legacy['error.tipo'],
+    backend: legacy['error.backend'],
+    creditoPresent: legacy.creditoPresent
+  })
+);
+
+console.log(
+  'DUAL RUN - MIGRADO:',
+  JSON.stringify({
+    httpStatus: migrated.httpStatus,
+    responseKind: migrated.responseKind,
+    codigo: migrated['error.codigo'],
+    mensaje: migrated['error.mensaje'],
+    tipo: migrated['error.tipo'],
+    backend: migrated['error.backend'],
+    creditoPresent: migrated.creditoPresent
+  })
+);
+
+insomnia.test('Dual Run | mismo HTTP status', () => {
+  insomnia.expect(migrated.httpStatus).to.eql(legacy.httpStatus);
+});
+
+insomnia.test('Dual Run | mismo tipo de respuesta', () => {
+  insomnia.expect(migrated.responseKind).to.eql(legacy.responseKind);
+});
+
+insomnia.test('Dual Run | respuesta reconocida', () => {
+  insomnia.expect(legacy.responseKind).to.not.eql('UNKNOWN');
+  insomnia.expect(migrated.responseKind).to.not.eql('UNKNOWN');
+});
+
+const fieldsToCompare =
+  legacy.responseKind === 'SOAP_FAULT' || migrated.responseKind === 'SOAP_FAULT'
+    ? FAULT_FIELDS
+    : ERROR_FIELDS;
+
+fieldsToCompare.forEach(field => {
+  insomnia.test(`Dual Run | ${field} idéntico`, () => {
+    insomnia.expect(migrated[field]).to.deep.eql(legacy[field]);
+  });
+});
+
+if (
+  legacy.responseKind === 'FUNCTIONAL_RESPONSE' &&
+  migrated.responseKind === 'FUNCTIONAL_RESPONSE'
+) {
+  insomnia.test('Dual Run | presencia de bodyOut.credito idéntica', () => {
+    insomnia.expect(migrated.creditoPresent).to.eql(legacy.creditoPresent);
+  });
+
+  if (legacy.creditoPresent || migrated.creditoPresent) {
+    insomnia.test('Dual Run | bodyOut.credito idéntico', () => {
+      insomnia.expect(migrated.credito).to.deep.eql(legacy.credito);
+    });
+  }
+}
+
+if (EXPECTED_MODE === 'SUCCESS') {
+  insomnia.test('CA-01 | Migrado HTTP 200', () => {
+    insomnia.expect(migrated.httpStatus).to.eql(200);
+  });
+
+  insomnia.test('CA-01 | Migrado código de éxito 0 o 9696', () => {
+    insomnia.expect(migrated['error.codigo']).to.be.oneOf(['0', '9696']);
+  });
+
+  insomnia.test('CA-01 | Migrado informa bodyOut.credito', () => {
+    insomnia.expect(migrated.creditoPresent).to.eql(true);
+  });
+
+  insomnia.test('CA-01 | Migrado informa mensaje de éxito', () => {
+    insomnia.expect(migrated['error.mensaje']).to.not.eql('');
+  });
+
+  insomnia.test('CA-01 | Migrado backend 00633', () => {
+    insomnia.expect(migrated['error.backend']).to.eql('00633');
+  });
+}
+
+if (EXPECTED_MODE === 'VALIDATION_ERROR') {
+  const expectedMessage = `El valor del campo ${EXPECTED_FIELD} se encuentra vacio`;
+
+  insomnia.test('CA-02 | Migrado código 1', () => {
+    insomnia.expect(migrated['error.codigo']).to.eql('1');
+  });
+
+  insomnia.test(`CA-02 | mensaje exacto para ${EXPECTED_FIELD}`, () => {
+    insomnia.expect(migrated['error.mensaje']).to.eql(expectedMessage);
+  });
+}
+
+if (EXPECTED_MODE === 'BUSINESS_ERROR') {
+  insomnia.test('CA-04 | Migrado HTTP 200', () => {
+    insomnia.expect(migrated.httpStatus).to.eql(200);
+  });
+
+  insomnia.test('CA-04 | código distinto de 0 y 9696', () => {
+    insomnia.expect(migrated['error.codigo']).to.not.be.oneOf(['', '0', '9696']);
+  });
+
+  insomnia.test('CA-04 | tipo ERROR', () => {
+    insomnia.expect(migrated['error.tipo']).to.eql('ERROR');
+  });
+
+  insomnia.test('CA-04 | recurso funcional esperado', () => {
+    insomnia.expect(migrated['error.recurso']).to.eql(
+      'UMPProductos0191/consultarCreditoDesembolsoSFI01'
+    );
+  });
+
+  insomnia.test('CA-04 | backend SFI 00633', () => {
+    insomnia.expect(migrated['error.backend']).to.eql('00633');
+  });
+}
+
+if (EXPECTED_MODE === 'TECHNICAL_ERROR') {
+  insomnia.test('CA-05 | código técnico 9999', () => {
+    insomnia.expect(migrated['error.codigo']).to.eql('9999');
+  });
+
+  insomnia.test('CA-05 | backend Middleware 00650', () => {
+    insomnia.expect(migrated['error.backend']).to.eql('00650');
+  });
+
+  insomnia.test('CA-05 | mensaje técnico informado', () => {
+    insomnia.expect(migrated['error.mensaje']).to.not.eql('');
+  });
+}
+
+if (EXPECTED_MODE === 'SOAP_FAULT') {
+  insomnia.test('CA-06 | ambos generan SOAP Fault', () => {
+    insomnia.expect(legacy.responseKind).to.eql('SOAP_FAULT');
+    insomnia.expect(migrated.responseKind).to.eql('SOAP_FAULT');
+  });
+}
+
+if (EXPECTED_MODE === 'SOAP_FAULT_OR_9999') {
+  insomnia.test('EP-003 | respuesta admitida por la definición', () => {
+    const isAccepted =
+      migrated.responseKind === 'SOAP_FAULT' ||
+      migrated['error.codigo'] === '9999';
+    insomnia.expect(isAccepted).to.eql(true);
+  });
+}
+```
+3. Campos comparados
+Lista cerrada de comparación:
+HTTP status y tipo de respuesta.
+`error.codigo`.
+`error.mensaje`.
+`error.mensajeNegocio`.
+`error.tipo`.
+`error.recurso`.
+`error.componente`.
+`error.backend`.
+Presencia y contenido completo normalizado de `bodyOut.credito`.
+Si existe SOAP Fault: `faultcode`, `faultstring` y `detail`.
+Los campos de entrada `tipoIdentificacion`, `identificacion`, `endeudamientoMicro` y `canalDSMBL` no aparecen directamente en el response de ejemplo. Su validación se realiza a través del resultado funcional observable. No se imprime `bodyOut.credito` en consola para reducir exposición de información financiera.
+4. Matriz lista para copiar en JIRA
+ID	CA	Tipo	Precondiciones	Datos / modificación	Resultado esperado	Modo del script	Evidencia
+EP-001	CA-01	Nominal	OCP4 y SFI 00633 disponibles; cliente con crédito consultable	`tipoIdentificacion=0001`, `identificacion=0906970447`, `endeudamientoMicro=0`, `canalDSMBL=DGAG`	HTTP 200; código `0` o `9696`; mensaje de éxito informado; backend `00633`; `bodyOut.credito` presente; paridad exacta	`SUCCESS`	Tests Dual Run y XML protegido de ambos ambientes
+EP-002	CA-02	Negativo	Servicios disponibles	`identificacion` vacío	Código `1`; mensaje `El valor del campo identificacion se encuentra vacio`; no invoca SFI; paridad	`VALIDATION_ERROR`, campo `identificacion`	Tests y trazas que demuestren ausencia de llamada al backend
+EP-003	CA-06	Negativo/XSD	Validación de esquema activa	Eliminar tag `headerIn.dispositivo`	Ambos rechazan por esquema o responden `9999`, según contrato finalmente acordado; paridad	`SOAP_FAULT_OR_9999`	XML/Fault y resultado Dual Run
+EP-004	CA-04	Error de negocio	Identificación sin crédito o con condición de negocio conocida	Usar identificación autorizada pendiente de suministrar	HTTP 200; propaga código y mensaje SFI; código distinto de `0/9696`; `tipo=ERROR`; recurso esperado; backend `00633`	`BUSINESS_ERROR`	Tests, XML y evidencia backend
+EP-005	CA-02	Negativo	Servicios disponibles	`canalDSMBL` vacío	Código `1`; mensaje `El valor del campo canalDSMBL se encuentra vacio`; no invoca SFI	`VALIDATION_ERROR`, campo `canalDSMBL`	Tests y trazas
+EP-006	CA-02	Negativo	Servicios disponibles	`tipoIdentificacion` vacío	Código `1`; mensaje exacto del campo; no invoca SFI; paridad	`VALIDATION_ERROR`, campo `tipoIdentificacion`	Tests y trazas
+EP-007	CA-02	Negativo	Servicios disponibles	`endeudamientoMicro` vacío	Código `1`; mensaje exacto del campo; no invoca SFI; paridad	`VALIDATION_ERROR`, campo `endeudamientoMicro`	Tests y trazas
+EP-008	CA-02	Parametrizado	Servicios disponibles	Ejecutar una iteración por cada campo body vacío/nulo	Cada iteración identifica exactamente el campo; no invoca backend	`VALIDATION_ERROR`	Evidencia por iteración
+EP-009	CA-05	Técnico	Servicios disponibles	Eliminar completamente `headerIn`	Error técnico `9999`; mensaje informado; backend `00650`; paridad	`TECHNICAL_ERROR`	Tests y XML
+EP-010	CA-05	Técnico	Servicios disponibles	Eliminar completamente `bodyIn`	Error técnico `9999`; mensaje informado; backend `00650`; paridad	`TECHNICAL_ERROR`	Tests y XML
+EP-011	CA-06	XSD parametrizado	Validación XSD activa	Omitir individualmente cada obligatorio del header	Cada iteración genera rechazo XSD e identifica el elemento; paridad	`SOAP_FAULT`	Fault por elemento
+EP-012	CA-03	Seguridad/manual	Política de Ciberseguridad aprobada	Consulta exitosa con información financiera	Datos sensibles enmascarados conforme a política; sin exposición indebida en logs	`SUCCESS` + revisión manual	Evidencia anonimizada y aprobación de Seguridad
+EP-013	CA-07	Observabilidad/manual	Acceso de lectura al pod	Ejecutar transacción con `guid` único	Logs JSON de entrada, proceso y salida; correlación completa; datos sensibles protegidos	Según escenario	Extracto anonimizado de logs
+EP-014	CA-08	Observabilidad/manual	Dynatrace instrumentado	Ejecutar transacciones exitosas y fallidas	Dynatrace registra latencia, errores, salud y trazas	Según escenario	Capturas/enlace a dashboard
+EP-015	CA-09	Rendimiento	TPS/SLA confirmados; datos autorizados; ambiente estable	Carga independiente hasta 128 TPS o valor aprobado	p95 menor a 800 ms y HTTP 5xx menor o igual a 3%	Script k6 separado	Reporte k6 y dashboard
+EP-016	CA-10	Documental/manual	Desarrollo finalizado	Revisar entregables	Diagrama ICE Panel y documento Confluence completos y vigentes	No aplica	Enlaces y acta de revisión
+5. Observaciones y riesgos
+EP-003 admite “error de esquema o código 9999”, pero son comportamientos contractualmente diferentes. Debe definirse uno como resultado oficial con Arquitectura/Product Owner.
+CA-01 acepta `0` o `9696`, mientras EP-001 menciona únicamente `0`. El script aplica el criterio superior y acepta ambos.
+La política de enmascaramiento está pendiente; CA-03 no puede aprobarse hasta recibirla de Ciberseguridad.
+La historia pide paridad con `UMPProductos0191`, aunque los endpoints corresponden a `WSProductos0143`. Esto parece intencional por el recurso legacy, pero debe documentarse.
+El valor de 128 TPS y el p95 de 800 ms son referenciales y requieren confirmación antes de ejecutar o aprobar rendimiento.
+Una comparación exitosa no demuestra por sí sola corrección: ambos ambientes podrían devolver el mismo resultado incorrecto. Por eso el script combina pruebas de paridad y aserciones propias de cada criterio.
