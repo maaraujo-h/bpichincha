@@ -1,3 +1,88 @@
+1. Corrige el endpoint migrado
+
+En el código cambia:
+
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'http://tpr-msa-sp-wsproductos0143.apps.ocptest.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
+por el endpoint que aparece en tu petición:
+
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'http://tpr-msa-sp-wsproductos0143.apps.ocpdev.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
+Confirma con el desarrollador si el ambiente correcto es ocpdev u ocptest.
+
+2. Cambia el bloque de ejecución para ver cuál falla
+
+Busca:
+
+const legacyResponse = await sendSoap(LEGACY_URL, REQUEST_XML);
+const migratedResponse = await sendSoap(MIGRATED_URL, REQUEST_XML);
+
+const legacyParsed = await parseXml(responseText(legacyResponse));
+const migratedParsed = await parseXml(responseText(migratedResponse));
+
+Reemplázalo por:
+
+const legacyResponse = await sendSoap(LEGACY_URL, REQUEST_XML);
+const migratedResponse = await sendSoap(MIGRATED_URL, REQUEST_XML);
+
+const legacyText = responseText(legacyResponse);
+const migratedText = responseText(migratedResponse);
+
+console.log('LEGADO HTTP:', legacyResponse.code);
+console.log('LEGADO RESPONSE:', legacyText.substring(0, 500));
+
+console.log('MIGRADO HTTP:', migratedResponse.code);
+console.log('MIGRADO RESPONSE:', migratedText.substring(0, 500));
+
+function validateXmlResponse(environmentName, response, text) {
+  if (!text || text.trim() === '') {
+    throw new Error(
+      environmentName +
+        ' devolvió una respuesta vacía. HTTP: ' +
+        response.code
+    );
+  }
+
+  if (!text.trim().startsWith('<')) {
+    throw new Error(
+      environmentName +
+        ' no devolvió XML. HTTP: ' +
+        response.code +
+        '. Respuesta: ' +
+        text.substring(0, 300)
+    );
+  }
+}
+
+validateXmlResponse('LEGADO', legacyResponse, legacyText);
+validateXmlResponse('MIGRADO', migratedResponse, migratedText);
+
+const legacyParsed = await parseXml(legacyText);
+const migratedParsed = await parseXml(migratedText);
+
+Así el próximo error será claro, por ejemplo:
+
+MIGRADO no devolvió XML. HTTP: 500. Respuesta: Error...
+3. Prueba primero sin el script
+
+Antes de ejecutar el Dual Run:
+
+Desactiva temporalmente After-response usando el punto verde.
+Ejecuta solamente el endpoint Migrado.
+Confirma que responda un XML.
+Crea otra petición individual para Legado.
+Confirma que también responda XML.
+Cuando ambos funcionen individualmente, activa nuevamente el script.
+
+En tu captura la petición principal también aparece como Error y 0 B, por lo que primero debes resolver la conexión o el endpoint individual. El Dual Run no podrá comparar respuestas mientras alguno de los dos servicios no devuelva XML.
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'http://tpr-msa-sp-wsproductos0143.apps.ocpdev.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
 // Pegar TODO este archivo en: Scripts > After-response
 // El XML debe permanecer en la pestaña Body de la petición.
 
