@@ -1,0 +1,385 @@
+# Dual Run SOAP – WSProductos0146 / liberarSolicitudSFI31
+
+## 1. Configuración en Insomnia
+
+Crear una petición auxiliar dentro de la colección y abrir **Scripts > After-response**. Pegar el script de la sección 2.
+
+El script no depende de la respuesta de la petición auxiliar: ejecuta, de manera consecutiva, el mismo XML contra Legado y Migrado mediante `insomnia.sendRequest`.
+
+Variables opcionales del ambiente de Insomnia:
+
+```json
+{
+  "dualRunLegacyUrl": "http://10.60.128.58:6921/WSProductos0146/soap/WSProductos0146Request",
+  "dualRunMigratedUrl": "https://tpr-msa-sp-wsproductos0146-enp.apps.ocptest.uiotest.bpichinchatest.test/WSProductos0146/soap/WSProductos0146Request",
+  "dualRunSoapAction": "",
+  "dualRunRequestXml": "PEGAR_AQUI_EL_XML_DEL_CASO",
+  "dualRunExpectedMode": "SUCCESS"
+}
+```
+
+Valores válidos de `dualRunExpectedMode`:
+
+- `SUCCESS`: espera `codigo=0`, `mensaje=OK`, `tipo=INFO`, recurso de WSProductos0146 y `backend=00633`.
+- `TECHNICAL_ERROR`: espera `codigo=9999`, `tipo=FATAL` y `backend=00650`.
+- `BUSINESS_ERROR`: exige HTTP 200 y compara el bloque de negocio, sin fijar un código concreto.
+- `SOAP_FAULT`: exige que ambos servicios devuelvan un Fault y compara sus campos.
+- `COMPARE_ONLY`: realiza únicamente la comparación entre Legado y Migrado.
+
+> Para XML multilínea resulta más cómodo guardar `dualRunRequestXml` en el ambiente como string JSON o sustituir `DEFAULT_REQUEST_XML` dentro del script.
+
+## 2. Script JavaScript para After-response / Tests
+
+```javascript
+const xml2js = require('xml2js');
+
+const LEGACY_URL =
+  insomnia.environment.get('dualRunLegacyUrl') ||
+  'http://10.60.128.58:6921/WSProductos0146/soap/WSProductos0146Request';
+
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'https://tpr-msa-sp-wsproductos0146-enp.apps.ocptest.uiotest.bpichinchatest.test/WSProductos0146/soap/WSProductos0146Request';
+
+const SOAP_ACTION = insomnia.environment.get('dualRunSoapAction') || '';
+const EXPECTED_MODE =
+  insomnia.environment.get('dualRunExpectedMode') || 'COMPARE_ONLY';
+
+const DEFAULT_REQUEST_XML = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:ser="http://bpichincha.com/servicios">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ser:liberarSolicitudSFI31>
+      <headerIn>
+        <dispositivo>f03e91dda4d88439</dispositivo>
+        <empresa>0010</empresa>
+        <canal>03</canal>
+        <medio>030006</medio>
+        <aplicacion>00663</aplicacion>
+        <agencia/>
+        <tipoTransaccion>202002402</tipoTransaccion>
+        <geolocalizacion>149.50.200.230</geolocalizacion>
+        <usuario>VAROMMEL</usuario>
+        <unicidad>bacef151-6ef9-488e-b7b7-842da30e913f</unicidad>
+        <guid>e570cd72416f47d69283e594eba6ad40</guid>
+        <fechaHora>20260416095516</fechaHora>
+        <filler/>
+        <idioma>ec-ES</idioma>
+        <sesion/>
+        <ip>10.151.152.108</ip>
+        <idCliente/>
+        <tipoIdCliente/>
+        <documento>
+          <fechaContable>20260416095516</fechaContable>
+          <numeroDocumento>DOC123</numeroDocumento>
+          <journals></journals>
+        </documento>
+      </headerIn>
+      <bodyIn>
+        <externalId>DSMBL_0906970447_010140_53928_20</externalId>
+        <externalType>DESEMBOLSO</externalType>
+        <identificacion>0906970447</identificacion>
+        <tipoIdentificacion>0001</tipoIdentificacion>
+        <motivoReverso>Prueba</motivoReverso>
+        <canalDSMBL>DGAG</canalDSMBL>
+        <numeroOperacion></numeroOperacion>
+      </bodyIn>
+    </ser:liberarSolicitudSFI31>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+const REQUEST_XML =
+  insomnia.environment.get('dualRunRequestXml') || DEFAULT_REQUEST_XML;
+
+function sendSoap(url, xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/soap+xml'
+  };
+
+  if (SOAP_ACTION) headers.SOAPAction = SOAP_ACTION;
+
+  const request = {
+    url,
+    method: 'POST',
+    header: headers,
+    body: {
+      mode: 'raw',
+      raw: xml
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(request, (error, response) => {
+      if (error) return reject(error);
+      resolve(response);
+    });
+  });
+}
+
+function responseText(response) {
+  if (typeof response.body === 'string') return response.body;
+  if (response.body && typeof response.body.toString === 'function') {
+    return response.body.toString('utf8');
+  }
+  if (typeof response.data === 'string') return response.data;
+  throw new Error('Insomnia no entregó el body de la respuesta como texto.');
+}
+
+function parseXml(xml) {
+  return new Promise((resolve, reject) => {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        trim: false,
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      (error, result) => (error ? reject(error) : resolve(result))
+    );
+  });
+}
+
+function scalar(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, '_')) {
+    return String(value._);
+  }
+  return '';
+}
+
+function readPath(object, path) {
+  const value = path.split('.').reduce(
+    (current, key) => (current == null ? undefined : current[key]),
+    object
+  );
+  return scalar(value);
+}
+
+function findFirstByKey(node, searchedKey) {
+  if (!node || typeof node !== 'object') return undefined;
+  if (Object.prototype.hasOwnProperty.call(node, searchedKey)) return node[searchedKey];
+
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findFirstByKey(item, searchedKey);
+        if (found !== undefined) return found;
+      }
+    } else if (value && typeof value === 'object') {
+      const found = findFirstByKey(value, searchedKey);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
+function collectValuesByKey(node, searchedKey, result = []) {
+  if (!node || typeof node !== 'object') return result;
+
+  for (const [key, value] of Object.entries(node)) {
+    if (key === searchedKey) {
+      const values = Array.isArray(value) ? value : [value];
+      values.forEach(item => result.push(scalar(item)));
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(item => collectValuesByKey(item, searchedKey, result));
+    } else if (value && typeof value === 'object') {
+      collectValuesByKey(value, searchedKey, result);
+    }
+  }
+  return result;
+}
+
+function extractComparable(parsedXml, httpStatus) {
+  const error = findFirstByKey(parsedXml, 'error');
+  const fault = findFirstByKey(parsedXml, 'Fault');
+  const headerOut = findFirstByKey(parsedXml, 'headerOut');
+  const documento = headerOut ? findFirstByKey(headerOut, 'documento') : undefined;
+
+  return {
+    httpStatus: Number(httpStatus),
+    responseKind: fault ? 'SOAP_FAULT' : error ? 'FUNCTIONAL_RESPONSE' : 'UNKNOWN',
+
+    // Bloque <error>: lista cerrada de campos permitidos por los CA.
+    'error.codigo': readPath(error, 'codigo'),
+    'error.mensaje': readPath(error, 'mensaje'),
+    'error.mensajeNegocio': readPath(error, 'mensajeNegocio'),
+    'error.tipo': readPath(error, 'tipo'),
+    'error.recurso': readPath(error, 'recurso'),
+    'error.componente': readPath(error, 'componente'),
+    'error.backend': readPath(error, 'backend'),
+
+    // Campos observables relacionados con CA-02 y CA-03.
+    'headerOut.usuario': readPath(headerOut, 'usuario'),
+    'headerOut.documento.fechaContable': readPath(documento, 'fechaContable'),
+    'headerOut.documento.numeroDocumento': readPath(documento, 'numeroDocumento'),
+    'headerOut.documento.journal.valor': collectValuesByKey(documento, 'valor'),
+
+    // Campos observables cuando la respuesta es SOAP Fault.
+    'fault.faultcode': readPath(fault, 'faultcode'),
+    'fault.faultstring': readPath(fault, 'faultstring'),
+    'fault.detail': scalar(fault && fault.detail)
+  };
+}
+
+const FUNCTIONAL_FIELDS = [
+  'error.codigo',
+  'error.mensaje',
+  'error.mensajeNegocio',
+  'error.tipo',
+  'error.recurso',
+  'error.componente',
+  'error.backend',
+  'headerOut.usuario',
+  'headerOut.documento.fechaContable',
+  'headerOut.documento.numeroDocumento',
+  'headerOut.documento.journal.valor'
+];
+
+const FAULT_FIELDS = [
+  'fault.faultcode',
+  'fault.faultstring',
+  'fault.detail'
+];
+
+const legacyResponse = await sendSoap(LEGACY_URL, REQUEST_XML);
+const migratedResponse = await sendSoap(MIGRATED_URL, REQUEST_XML);
+
+const legacyXml = responseText(legacyResponse);
+const migratedXml = responseText(migratedResponse);
+const legacyParsed = await parseXml(legacyXml);
+const migratedParsed = await parseXml(migratedXml);
+
+const legacy = extractComparable(legacyParsed, legacyResponse.code);
+const migrated = extractComparable(migratedParsed, migratedResponse.code);
+
+console.log('DUAL RUN - LEGADO:', JSON.stringify(legacy, null, 2));
+console.log('DUAL RUN - MIGRADO:', JSON.stringify(migrated, null, 2));
+
+insomnia.test('Dual Run | mismo tipo de respuesta', () => {
+  insomnia.expect(migrated.responseKind).to.eql(legacy.responseKind);
+});
+
+insomnia.test('Dual Run | mismo HTTP status', () => {
+  insomnia.expect(migrated.httpStatus).to.eql(legacy.httpStatus);
+});
+
+const fieldsToCompare =
+  legacy.responseKind === 'SOAP_FAULT' || migrated.responseKind === 'SOAP_FAULT'
+    ? FAULT_FIELDS
+    : FUNCTIONAL_FIELDS;
+
+fieldsToCompare.forEach(field => {
+  insomnia.test(`Dual Run | ${field} es idéntico`, () => {
+    insomnia.expect(migrated[field]).to.deep.eql(legacy[field]);
+  });
+});
+
+insomnia.test('Dual Run | respuesta reconocida', () => {
+  insomnia.expect(legacy.responseKind).to.not.eql('UNKNOWN');
+  insomnia.expect(migrated.responseKind).to.not.eql('UNKNOWN');
+});
+
+if (EXPECTED_MODE === 'SUCCESS') {
+  [
+    ['error.codigo', '0'],
+    ['error.mensaje', 'OK'],
+    ['error.tipo', 'INFO'],
+    ['error.backend', '00633']
+  ].forEach(([field, expected]) => {
+    insomnia.test(`CA éxito | Migrado ${field} = ${expected}`, () => {
+      insomnia.expect(migrated[field]).to.eql(expected);
+    });
+  });
+
+  insomnia.test('CA éxito | recurso corresponde a WSProductos0146/liberarSolicitudSFI31', () => {
+    insomnia.expect(migrated['error.recurso']).to.include(
+      'wsproductos0146/liberarSolicitudSFI31'
+    );
+  });
+}
+
+if (EXPECTED_MODE === 'TECHNICAL_ERROR') {
+  [
+    ['error.codigo', '9999'],
+    ['error.tipo', 'FATAL'],
+    ['error.backend', '00650']
+  ].forEach(([field, expected]) => {
+    insomnia.test(`CA error técnico | Migrado ${field} = ${expected}`, () => {
+      insomnia.expect(migrated[field]).to.eql(expected);
+    });
+  });
+}
+
+if (EXPECTED_MODE === 'BUSINESS_ERROR') {
+  insomnia.test('CA error de negocio | ambos servicios responden HTTP 200', () => {
+    insomnia.expect(legacy.httpStatus).to.eql(200);
+    insomnia.expect(migrated.httpStatus).to.eql(200);
+  });
+
+  insomnia.test('CA error de negocio | Migrado propaga código y mensaje', () => {
+    insomnia.expect(migrated['error.codigo']).to.not.eql('');
+    const hasMessage =
+      migrated['error.mensaje'] !== '' || migrated['error.mensajeNegocio'] !== '';
+    insomnia.expect(hasMessage).to.eql(true);
+  });
+}
+
+if (EXPECTED_MODE === 'SOAP_FAULT') {
+  insomnia.test('CA XSD | ambos servicios generan SOAP Fault', () => {
+    insomnia.expect(legacy.responseKind).to.eql('SOAP_FAULT');
+    insomnia.expect(migrated.responseKind).to.eql('SOAP_FAULT');
+  });
+
+  insomnia.test('CA XSD | Fault del Migrado indica dispositivo', () => {
+    const faultText = `${migrated['fault.faultstring']} ${migrated['fault.detail']}`;
+    insomnia.expect(faultText.toLowerCase()).to.include('dispositivo');
+  });
+}
+```
+
+## 3. Alcance real de la comparación
+
+El script compara exclusivamente:
+
+- HTTP status y tipo observable de respuesta.
+- Los siete campos de `<error>`: `codigo`, `mensaje`, `mensajeNegocio`, `tipo`, `recurso`, `componente` y `backend`.
+- Del `headerOut`, los campos observables ligados a los criterios: `usuario`, `documento.fechaContable`, `documento.numeroDocumento` y los valores de journals.
+- Para un SOAP Fault: `faultcode`, `faultstring` y `detail`.
+
+`externalId` e `identificacion` no aparecen en el response de ejemplo. Por eso no es técnicamente posible afirmar desde Insomnia que la UMP recibió esos valores normalizados. El script sí valida que ambos entornos produzcan el mismo resultado observable. Para comprobar la normalización interna de CA-03 se requiere evidencia de logs, trazas o un mock/stub del backend.
+
+## 4. Matriz de casos para copiar en JIRA
+
+| ID | CA | Tipo | Precondiciones | Datos / modificación del request | Resultado esperado | Validación / evidencia |
+|---|---|---|---|---|---|---|
+| EP-001 | CA-01 | Nominal | Legado, OCP4 y SFI 00633 disponibles; solicitud válida no liberada | Header completo; body completo; eliminar `documento`; usar `externalId` e `identificacion` válidos; modo `SUCCESS` | Ambos responden HTTP 200; `codigo=0`; `mensaje=OK`; `tipo=INFO`; recurso de WSProductos0146/liberarSolicitudSFI31; `backend=00633`; campos comparados idénticos | Resultado de tests Dual Run y XML de ambos ambientes |
+| EP-002 | CA-02 | Alterno | Datos contables válidos y solicitud liberable | Incluir `documento`; `numeroDocumento=DOC12345`; agregar journal con `valor=100.00`; modo `SUCCESS` | Sin rechazo XSD; HTTP 200; `codigo=0`; documento procesado; campos seleccionados idénticos | Tests Dual Run, requests y responses XML |
+| EP-003 | CA-05 | Negativo | Servicios disponibles | Eliminar por completo `bodyIn`; modo `TECHNICAL_ERROR` | Respuesta controlada; `codigo=9999`; `tipo=FATAL`; `backend=00650`; paridad Legado/Migrado | Tests Dual Run y XML de ambos ambientes |
+| EP-004 | CA-06 | Negativo/XSD | Validación XSD activa | Eliminar el elemento obligatorio `dispositivo`; modo `SOAP_FAULT` | Ambos generan SOAP Fault; el detalle identifica `dispositivo`; campos Fault idénticos | Tests Dual Run y XML del Fault |
+| EP-005 | CA-03 | Boundary | Trazas o logs accesibles; datos restantes válidos | Enviar `<identificacion></identificacion>` o `<identificacion/>`; modo `COMPARE_ONLY` o `BUSINESS_ERROR` según el dato usado | No existe rechazo por nulidad/XSD; ambos entornos presentan el mismo resultado observable; trazas confirman cadena vacía antes de UMP | Tests Dual Run + evidencia de logs/trazas |
+| EP-006 | CA-03 | Boundary | Trazas o logs accesibles | Enviar `externalId`, `identificacion` y `usuario` como cadenas vacías | El servicio normaliza vacíos sin NullPointer ni error no controlado; paridad entre ambientes | Tests Dual Run + trazas de entrada a UMP |
+| EP-007 | CA-04 | Negocio | Contar con una solicitud ya liberada o inexistente | Usar dato que provoque error del SP; modo `BUSINESS_ERROR` | HTTP 200; código y mensaje de negocio propagados; bloque `<error>` idéntico entre Legado y Migrado | Tests Dual Run y evidencia del SP/backend |
+| EP-008 | CA-05 | Negativo | Servicios disponibles | Eliminar por completo `headerIn`; modo `TECHNICAL_ERROR` | `codigo=9999`; `tipo=FATAL`; `backend=00650`; paridad entre ambientes | Tests Dual Run y XML de ambos ambientes |
+| EP-009 | CA-06 | Negativo/XSD parametrizado | Validación XSD activa | Ejecutar una iteración por cada obligatorio ausente: empresa, canal, medio, aplicación, agencia, tipoTransaccion, geolocalizacion, unicidad, guid, fechaHora, filler, idioma, sesion, idCliente y tipoIdCliente | Cada iteración genera SOAP Fault e identifica el elemento ausente; comportamiento equivalente | Evidencia por iteración y defectos si existen diferencias |
+| EP-010 | CA-07 | Técnico/manual | Acceso de lectura al pod y correlación por `guid`/`unicidad` | Ejecutar EP-001 con valores únicos | Logs incluyen entrada, procesamiento y respuesta sin exponer información sensible innecesaria | Extracto de logs correlacionado |
+| EP-011 | CA-08 | Observabilidad/manual | Dynatrace instrumentado | Ejecutar transacciones exitosas y fallidas | Dynatrace registra salud, latencia, tasa de errores y trazas del servicio | Capturas o enlace a dashboard |
+| EP-012 | CA-09 | Rendimiento | TPS y SLA confirmados por Arquitectura; ambiente estable | Prueba independiente a 128 TPS o valor confirmado | p95 menor a 800 ms y HTTP 5xx menor o igual a 3%, según valores finalmente aprobados | Informe k6/JMeter/Gatling y dashboard |
+| EP-013 | CA-10 | Documental/manual | Entregables publicados | Revisar ICE Panel, documento técnico, especificaciones y contrato API | Diagrama TO-BE y documentación completos, vigentes y accesibles | Enlaces y acta de revisión |
+
+## 5. Observaciones y riesgos que deben registrarse
+
+1. El response de ejemplo devuelve `tipo=ERROR`, pero CA-05 exige `tipo=FATAL`. Para EP-003 y EP-008 debe prevalecer el criterio formal o aclararse con el Product Owner/Arquitectura.
+2. El ejemplo devuelve `backend=00650`; CA-01 exige `backend=00633`. Esto es coherente si el ejemplo representa un error técnico, no una ejecución exitosa.
+3. El recurso puede incluir un prefijo de despliegue como `tpr-msa-sp-`. El Dual Run solicitado compara el valor completo y, por tanto, reportará diferencia si Legado y Migrado usan nombres distintos. Si Arquitectura considera equivalentes ambos prefijos, se debe acordar una normalización explícita; no conviene ocultar la diferencia sin aprobación.
+4. CA-09 contiene cifras referenciales pendientes de confirmación. No debe cerrarse como aprobado hasta contar con TPS y SLA oficiales.
+5. Las pruebas que liberan o reversan solicitudes alteran estado. Se necesitan datos independientes por ejecución para evitar falsos errores de “solicitud ya liberada”.
+
+## 6. Criterio de aprobación sugerido
+
+El Dual Run se considera aprobado cuando ambos entornos responden, generan el mismo tipo de respuesta y todos los campos de la lista cerrada coinciden exactamente. Además, cada escenario debe cumplir sus aserciones funcionales propias. Una coincidencia entre ambos entornos no basta si ambos devuelven el mismo resultado incorrecto.
