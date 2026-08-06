@@ -1,3 +1,649 @@
+const xml2js = require('xml2js');
+
+// ======================================================
+// 1. ENDPOINTS
+// ======================================================
+
+const LEGACY_URL =
+  'http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request';
+
+const MIGRATED_URL =
+  'http://tpr-msa-sp-wsproductos0143.apps.ocpdev.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
+// Si el desarrollador confirma que se necesita SOAPAction,
+// coloca aquí el valor correspondiente.
+const SOAP_ACTION = '';
+
+// ======================================================
+// 2. OBTENER EL XML DE LA PESTAÑA BODY
+// ======================================================
+
+function getRequestXml() {
+  const body = insomnia.request.body;
+
+  if (body && typeof body.raw === 'string') {
+    return body.raw;
+  }
+
+  if (body && typeof body.text === 'string') {
+    return body.text;
+  }
+
+  return '';
+}
+
+const REQUEST_XML = getRequestXml();
+
+if (!REQUEST_XML || REQUEST_XML.trim() === '') {
+  throw new Error(
+    'No se encontró el XML. Debes colocar la petición SOAP en Body → XML.'
+  );
+}
+
+// ======================================================
+// 3. ENVIAR PETICIÓN SOAP
+// ======================================================
+
+function sendSoap(environmentName, url, xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml, application/soap+xml'
+  };
+
+  if (SOAP_ACTION !== '') {
+    headers.SOAPAction = SOAP_ACTION;
+  }
+
+  const request = {
+    url: url,
+    method: 'POST',
+    header: headers,
+    body: {
+      mode: 'raw',
+      raw: xml
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(request, (error, response) => {
+      if (error) {
+        reject(
+          new Error(
+            environmentName +
+              ' presentó un error de conexión: ' +
+              error.message
+          )
+        );
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+// ======================================================
+// 4. OBTENER EL TEXTO DE LA RESPUESTA
+// ======================================================
+
+function getResponseText(response) {
+  if (typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (
+    response.body &&
+    typeof response.body.toString === 'function'
+  ) {
+    return response.body.toString('utf8');
+  }
+
+  if (typeof response.data === 'string') {
+    return response.data;
+  }
+
+  return '';
+}
+
+// ======================================================
+// 5. VALIDAR QUE LA RESPUESTA SEA XML
+// ======================================================
+
+function validateXmlResponse(environmentName, response, text) {
+  const status = response.code || response.status || 'SIN STATUS';
+
+  if (!text || text.trim() === '') {
+    throw new Error(
+      environmentName +
+        ' devolvió una respuesta vacía. HTTP: ' +
+        status
+    );
+  }
+
+  if (!text.trim().startsWith('<')) {
+    throw new Error(
+      environmentName +
+        ' no devolvió XML. HTTP: ' +
+        status +
+        '. Respuesta recibida: ' +
+        text.substring(0, 300)
+    );
+  }
+}
+
+// ======================================================
+// 6. PARSING XML
+// ======================================================
+
+function parseXml(xml) {
+  return new Promise((resolve, reject) => {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        trim: false,
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(result);
+      }
+    );
+  });
+}
+
+// ======================================================
+// 7. BUSCAR ELEMENTOS SIN IMPORTAR EL NAMESPACE
+// ======================================================
+
+function findFirstByKey(node, searchedKey) {
+  if (!node || typeof node !== 'object') {
+    return undefined;
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(node, searchedKey)
+  ) {
+    return node[searchedKey];
+  }
+
+  const values = Object.values(node);
+
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const foundInArray = findFirstByKey(
+          item,
+          searchedKey
+        );
+
+        if (foundInArray !== undefined) {
+          return foundInArray;
+        }
+      }
+    } else if (
+      value &&
+      typeof value === 'object'
+    ) {
+      const found = findFirstByKey(
+        value,
+        searchedKey
+      );
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+// ======================================================
+// 8. NORMALIZAR VALORES XML
+// ======================================================
+
+function scalar(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number'
+  ) {
+    return String(value);
+  }
+
+  if (
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(value, '_')
+  ) {
+    return String(value._);
+  }
+
+  return '';
+}
+
+function normalizeNode(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeNode);
+  }
+
+  if (typeof value !== 'object') {
+    return String(value);
+  }
+
+  const normalized = {};
+
+  Object.keys(value)
+    .filter(key => key !== '$')
+    .sort()
+    .forEach(key => {
+      normalized[key] = normalizeNode(value[key]);
+    });
+
+  return normalized;
+}
+
+// ======================================================
+// 9. EXTRAER LOS CAMPOS QUE SE COMPARARÁN
+// ======================================================
+
+function extractFields(parsedXml, httpStatus) {
+  const errorBlock = findFirstByKey(
+    parsedXml,
+    'error'
+  );
+
+  const bodyOut = findFirstByKey(
+    parsedXml,
+    'bodyOut'
+  );
+
+  const credito = bodyOut
+    ? findFirstByKey(bodyOut, 'credito')
+    : undefined;
+
+  const fault = findFirstByKey(
+    parsedXml,
+    'Fault'
+  );
+
+  let responseType = 'UNKNOWN';
+
+  if (fault) {
+    responseType = 'SOAP_FAULT';
+  } else if (errorBlock) {
+    responseType = 'FUNCTIONAL_RESPONSE';
+  }
+
+  return {
+    httpStatus: Number(httpStatus),
+    responseType: responseType,
+
+    codigo: scalar(
+      errorBlock && errorBlock.codigo
+    ),
+
+    mensaje: scalar(
+      errorBlock && errorBlock.mensaje
+    ),
+
+    mensajeNegocio: scalar(
+      errorBlock && errorBlock.mensajeNegocio
+    ),
+
+    tipo: scalar(
+      errorBlock && errorBlock.tipo
+    ),
+
+    recurso: scalar(
+      errorBlock && errorBlock.recurso
+    ),
+
+    componente: scalar(
+      errorBlock && errorBlock.componente
+    ),
+
+    backend: scalar(
+      errorBlock && errorBlock.backend
+    ),
+
+    creditoPresent:
+      credito !== undefined &&
+      credito !== null,
+
+    credito: normalizeNode(credito),
+
+    faultcode: scalar(
+      fault && fault.faultcode
+    ),
+
+    faultstring: scalar(
+      fault && fault.faultstring
+    ),
+
+    faultDetail: normalizeNode(
+      fault && fault.detail
+    )
+  };
+}
+
+// ======================================================
+// 10. EJECUCIÓN CONSECUTIVA
+// ======================================================
+
+// Primero se ejecuta Legado.
+const legacyResponse = await sendSoap(
+  'LEGADO',
+  LEGACY_URL,
+  REQUEST_XML
+);
+
+// Cuando termina Legado, se ejecuta Migrado.
+const migratedResponse = await sendSoap(
+  'MIGRADO',
+  MIGRATED_URL,
+  REQUEST_XML
+);
+
+const legacyText = getResponseText(
+  legacyResponse
+);
+
+const migratedText = getResponseText(
+  migratedResponse
+);
+
+// Mostrar información de diagnóstico.
+console.log(
+  'LEGADO HTTP:',
+  legacyResponse.code
+);
+
+console.log(
+  'LEGADO RESPONSE:',
+  legacyText.substring(0, 300)
+);
+
+console.log(
+  'MIGRADO HTTP:',
+  migratedResponse.code
+);
+
+console.log(
+  'MIGRADO RESPONSE:',
+  migratedText.substring(0, 300)
+);
+
+// Validar antes de intentar convertir a XML.
+validateXmlResponse(
+  'LEGADO',
+  legacyResponse,
+  legacyText
+);
+
+validateXmlResponse(
+  'MIGRADO',
+  migratedResponse,
+  migratedText
+);
+
+const legacyParsed = await parseXml(
+  legacyText
+);
+
+const migratedParsed = await parseXml(
+  migratedText
+);
+
+const legacy = extractFields(
+  legacyParsed,
+  legacyResponse.code
+);
+
+const migrated = extractFields(
+  migratedParsed,
+  migratedResponse.code
+);
+
+// No imprimimos el contenido del crédito porque puede
+// contener información financiera sensible.
+console.log(
+  'RESULTADO LEGADO:',
+  JSON.stringify({
+    httpStatus: legacy.httpStatus,
+    responseType: legacy.responseType,
+    codigo: legacy.codigo,
+    mensaje: legacy.mensaje,
+    tipo: legacy.tipo,
+    recurso: legacy.recurso,
+    componente: legacy.componente,
+    backend: legacy.backend,
+    creditoPresent: legacy.creditoPresent
+  })
+);
+
+console.log(
+  'RESULTADO MIGRADO:',
+  JSON.stringify({
+    httpStatus: migrated.httpStatus,
+    responseType: migrated.responseType,
+    codigo: migrated.codigo,
+    mensaje: migrated.mensaje,
+    tipo: migrated.tipo,
+    recurso: migrated.recurso,
+    componente: migrated.componente,
+    backend: migrated.backend,
+    creditoPresent: migrated.creditoPresent
+  })
+);
+
+// ======================================================
+// 11. TESTS DE PARIDAD LEGADO VS. MIGRADO
+// ======================================================
+
+insomnia.test(
+  'Dual Run | mismo HTTP status',
+  () => {
+    insomnia.expect(
+      migrated.httpStatus
+    ).to.eql(
+      legacy.httpStatus
+    );
+  }
+);
+
+insomnia.test(
+  'Dual Run | mismo tipo de respuesta',
+  () => {
+    insomnia.expect(
+      migrated.responseType
+    ).to.eql(
+      legacy.responseType
+    );
+  }
+);
+
+insomnia.test(
+  'Dual Run | respuesta Legado reconocida',
+  () => {
+    insomnia.expect(
+      legacy.responseType
+    ).to.not.eql('UNKNOWN');
+  }
+);
+
+insomnia.test(
+  'Dual Run | respuesta Migrado reconocida',
+  () => {
+    insomnia.expect(
+      migrated.responseType
+    ).to.not.eql('UNKNOWN');
+  }
+);
+
+// ======================================================
+// 12. COMPARACIÓN DEL BLOQUE ERROR
+// ======================================================
+
+if (
+  legacy.responseType === 'FUNCTIONAL_RESPONSE' &&
+  migrated.responseType === 'FUNCTIONAL_RESPONSE'
+) {
+  const fields = [
+    'codigo',
+    'mensaje',
+    'mensajeNegocio',
+    'tipo',
+    'recurso',
+    'componente',
+    'backend'
+  ];
+
+  fields.forEach(field => {
+    insomnia.test(
+      'Dual Run | error.' + field + ' idéntico',
+      () => {
+        insomnia.expect(
+          migrated[field]
+        ).to.eql(
+          legacy[field]
+        );
+      }
+    );
+  });
+
+  insomnia.test(
+    'Dual Run | presencia de credito idéntica',
+    () => {
+      insomnia.expect(
+        migrated.creditoPresent
+      ).to.eql(
+        legacy.creditoPresent
+      );
+    }
+  );
+
+  if (
+    legacy.creditoPresent ||
+    migrated.creditoPresent
+  ) {
+    insomnia.test(
+      'Dual Run | bodyOut.credito idéntico',
+      () => {
+        insomnia.expect(
+          migrated.credito
+        ).to.deep.eql(
+          legacy.credito
+        );
+      }
+    );
+  }
+}
+
+// ======================================================
+// 13. COMPARACIÓN DE SOAP FAULT
+// ======================================================
+
+if (
+  legacy.responseType === 'SOAP_FAULT' ||
+  migrated.responseType === 'SOAP_FAULT'
+) {
+  insomnia.test(
+    'Dual Run | faultcode idéntico',
+    () => {
+      insomnia.expect(
+        migrated.faultcode
+      ).to.eql(
+        legacy.faultcode
+      );
+    }
+  );
+
+  insomnia.test(
+    'Dual Run | faultstring idéntico',
+    () => {
+      insomnia.expect(
+        migrated.faultstring
+      ).to.eql(
+        legacy.faultstring
+      );
+    }
+  );
+
+  insomnia.test(
+    'Dual Run | detalle del Fault idéntico',
+    () => {
+      insomnia.expect(
+        migrated.faultDetail
+      ).to.deep.eql(
+        legacy.faultDetail
+      );
+    }
+  );
+}
+
+// ======================================================
+// 14. VALIDACIONES FUNCIONALES DE ÉXITO
+// ======================================================
+
+const legacyIsSuccess =
+  legacy.codigo === '0' ||
+  legacy.codigo === '9696';
+
+const migratedIsSuccess =
+  migrated.codigo === '0' ||
+  migrated.codigo === '9696';
+
+if (legacyIsSuccess || migratedIsSuccess) {
+  insomnia.test(
+    'CA-01 | Legado retorna código 0 o 9696',
+    () => {
+      insomnia.expect(
+        legacy.codigo
+      ).to.be.oneOf(['0', '9696']);
+    }
+  );
+
+  insomnia.test(
+    'CA-01 | Migrado retorna código 0 o 9696',
+    () => {
+      insomnia.expect(
+        migrated.codigo
+      ).to.be.oneOf(['0', '9696']);
+    }
+  );
+
+  insomnia.test(
+    'CA-01 | Legado informa credito',
+    () => {
+      insomnia.expect(
+        legacy.creditoPresent
+      ).to.eql(true);
+    }
+  );
+
+  insomnia.test(
+    'CA-01 | Migrado informa credito',
+    () => {
+      insomnia.expect(
+        migrated.creditoPresent
+      ).to.eql(true);
+    }
+  );
+}
+
 Así el script ya no buscará ninguna configuración en Environments.
 
 También cambia esta parte
