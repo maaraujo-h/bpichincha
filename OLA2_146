@@ -1,3 +1,91 @@
+Abre la pestaña Preview
+
+La respuesta pesa solamente 41 B. Aunque sea corta, puede contener la causa exacta. Compárteme una captura de Preview, no de Headers.
+
+Revisa las cabeceras del request
+
+En Headers configura:
+
+Header	Valor
+Content-Type	text/xml; charset=UTF-8
+Accept	text/xml, application/xml, application/soap+xml
+SOAPAction	Copiar exactamente el valor usado por el desarrollador
+
+El SOAPAction es uno de los sospechosos principales. Puede ser algo como:
+
+liberarSolicitudSFI31
+
+o una URI completa. No conviene adivinarlo: pídele al desarrollador que te comparta el cURL o una captura de sus headers.
+
+Compara el endpoint exacto
+
+Según la historia debe ser:
+
+http://10.60.128.58:6921/WSProductos0146/soap/WSProductos0146Request
+
+Confirma que el desarrollador esté usando exactamente:
+
+La misma IP.
+El mismo puerto 6921.
+HTTP y no HTTPS.
+La misma ruta.
+El mismo ambiente: Legado o Migrado.
+Elimina Content-Length si aparece
+
+En Insomnia, revisa que no hayas colocado manualmente:
+
+Content-Length
+
+Si existe, elimínalo o desactívalo. Insomnia debe calcularlo automáticamente. Un tamaño incorrecto puede provocar errores del servidor.
+
+Importa el cURL del desarrollador
+
+Esta es la forma más rápida de encontrar la diferencia:
+
+Pídele al desarrollador la petición que sí funciona en formato cURL.
+En Insomnia selecciona Create/Import → From Clipboard.
+Pega el cURL.
+Ejecuta la petición importada sin modificarla.
+
+Luego compara esa petición con la tuya: URL, headers, autenticación y XML.
+
+Revisa la petición real enviada
+
+Abre Timeline después de ejecutar y verifica:
+
+URL completa.
+Content-Type.
+SOAPAction.
+XML realmente transmitido.
+Si Insomnia añadió o eliminó alguna cabecera.
+Si hay redirección.
+Prueba temporalmente sin comentarios XML
+
+Aunque deberían ser válidos, elimina líneas como:
+
+<!--Optional:-->
+
+Deja solamente los elementos SOAP. Esto descarta problemas con un parser antiguo.
+
+Revisa numeroOperacion
+
+Actualmente estás enviando:
+
+<numeroOperacion></numeroOperacion>
+
+El response de ejemplo decía:
+
+Imposible determinar número de Operación a Liberar
+
+Esto normalmente debería producir una respuesta SOAP controlada y no HTTP 500, pero conviene probar con un numeroOperacion válido proporcionado por el desarrollador.
+
+Mi principal sospecha es esta:
+
+Tu request no tiene el mismo SOAPAction o Content-Type que la petición que sí funciona.
+
+El siguiente dato clave es el contenido de la pestaña Preview y una captura de tus cuatro headers del request. Con esas dos imágenes puedo decirte con mayor precisión cuál es la diferencia.
+
+
 # Dual Run SOAP – WSProductos0146 / liberarSolicitudSFI31
 
 ## 1. Configuración en Insomnia
