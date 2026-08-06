@@ -1,3 +1,391 @@
+// Pegar TODO este archivo en: Scripts > After-response
+// El XML debe permanecer en la pestaña Body de la petición.
+
+const xml2js = require('xml2js');
+
+const LEGACY_URL =
+  insomnia.environment.get('dualRunLegacyUrl') ||
+  'http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request';
+
+const MIGRATED_URL =
+  insomnia.environment.get('dualRunMigratedUrl') ||
+  'http://tpr-msa-sp-wsproductos0143.apps.ocptest.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
+const SOAP_ACTION = insomnia.environment.get('dualRunSoapAction') || '';
+const EXPECTED_MODE =
+  insomnia.environment.get('dualRunExpectedMode') || 'COMPARE_ONLY';
+const EXPECTED_FIELD =
+  insomnia.environment.get('dualRunExpectedField') || 'identificacion';
+
+function getCurrentRequestXml() {
+  const environmentXml = insomnia.environment.get('dualRunRequestXml');
+  if (environmentXml) return environmentXml;
+
+  const body = insomnia.request.body;
+  if (body && typeof body.raw === 'string') return body.raw;
+  if (body && typeof body.text === 'string') return body.text;
+  return '';
+}
+
+const REQUEST_XML = getCurrentRequestXml();
+
+if (!REQUEST_XML || REQUEST_XML.trim() === '') {
+  throw new Error(
+    'No se encontró el XML. Coloca el request SOAP en la pestaña Body de Insomnia.'
+  );
+}
+
+function sendSoap(url, xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml, application/soap+xml'
+  };
+
+  if (SOAP_ACTION) headers.SOAPAction = SOAP_ACTION;
+
+  return new Promise((resolve, reject) => {
+    insomnia.sendRequest(
+      {
+        url: url,
+        method: 'POST',
+        header: headers,
+        body: {
+          mode: 'raw',
+          raw: xml
+        }
+      },
+      (error, response) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(response);
+      }
+    );
+  });
+}
+
+function responseText(response) {
+  if (typeof response.body === 'string') return response.body;
+
+  if (response.body && typeof response.body.toString === 'function') {
+    return response.body.toString('utf8');
+  }
+
+  if (typeof response.data === 'string') return response.data;
+
+  throw new Error('Insomnia no entregó el body de la respuesta como texto.');
+}
+
+function parseXml(xml) {
+  return new Promise((resolve, reject) => {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        trim: false,
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(result);
+      }
+    );
+  });
+}
+
+function findFirstByKey(node, searchedKey) {
+  if (!node || typeof node !== 'object') return undefined;
+
+  if (Object.prototype.hasOwnProperty.call(node, searchedKey)) {
+    return node[searchedKey];
+  }
+
+  const values = Object.values(node);
+
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const foundInArray = findFirstByKey(item, searchedKey);
+        if (foundInArray !== undefined) return foundInArray;
+      }
+    } else if (value && typeof value === 'object') {
+      const found = findFirstByKey(value, searchedKey);
+      if (found !== undefined) return found;
+    }
+  }
+
+  return undefined;
+}
+
+function scalar(value) {
+  if (value === undefined || value === null) return '';
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+
+  if (
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(value, '_')
+  ) {
+    return String(value._);
+  }
+
+  return '';
+}
+
+function readPath(object, path) {
+  const value = path.split('.').reduce((current, key) => {
+    if (current === undefined || current === null) return undefined;
+    return current[key];
+  }, object);
+
+  return scalar(value);
+}
+
+function normalizeNode(value) {
+  if (value === undefined || value === null) return '';
+  if (Array.isArray(value)) return value.map(normalizeNode);
+  if (typeof value !== 'object') return String(value);
+
+  const result = {};
+
+  Object.keys(value)
+    .filter(key => key !== '$')
+    .sort()
+    .forEach(key => {
+      result[key] = normalizeNode(value[key]);
+    });
+
+  return result;
+}
+
+function extractComparable(parsedXml, httpStatus) {
+  const error = findFirstByKey(parsedXml, 'error');
+  const bodyOut = findFirstByKey(parsedXml, 'bodyOut');
+  const credito = bodyOut
+    ? findFirstByKey(bodyOut, 'credito')
+    : undefined;
+  const fault = findFirstByKey(parsedXml, 'Fault');
+
+  return {
+    httpStatus: Number(httpStatus),
+    responseKind: fault
+      ? 'SOAP_FAULT'
+      : error
+        ? 'FUNCTIONAL_RESPONSE'
+        : 'UNKNOWN',
+
+    'error.codigo': readPath(error, 'codigo'),
+    'error.mensaje': readPath(error, 'mensaje'),
+    'error.mensajeNegocio': readPath(error, 'mensajeNegocio'),
+    'error.tipo': readPath(error, 'tipo'),
+    'error.recurso': readPath(error, 'recurso'),
+    'error.componente': readPath(error, 'componente'),
+    'error.backend': readPath(error, 'backend'),
+
+    creditoPresent: credito !== undefined && credito !== null,
+    credito: normalizeNode(credito),
+
+    'fault.faultcode': readPath(fault, 'faultcode'),
+    'fault.faultstring': readPath(fault, 'faultstring'),
+    'fault.detail': normalizeNode(fault && fault.detail)
+  };
+}
+
+const ERROR_FIELDS = [
+  'error.codigo',
+  'error.mensaje',
+  'error.mensajeNegocio',
+  'error.tipo',
+  'error.recurso',
+  'error.componente',
+  'error.backend'
+];
+
+const FAULT_FIELDS = [
+  'fault.faultcode',
+  'fault.faultstring',
+  'fault.detail'
+];
+
+// Primero se ejecuta Legado y, cuando termina, se ejecuta Migrado.
+const legacyResponse = await sendSoap(LEGACY_URL, REQUEST_XML);
+const migratedResponse = await sendSoap(MIGRATED_URL, REQUEST_XML);
+
+const legacyParsed = await parseXml(responseText(legacyResponse));
+const migratedParsed = await parseXml(responseText(migratedResponse));
+
+const legacy = extractComparable(legacyParsed, legacyResponse.code);
+const migrated = extractComparable(migratedParsed, migratedResponse.code);
+
+// No se imprime credito porque puede contener información financiera.
+console.log(
+  'DUAL RUN LEGADO:',
+  JSON.stringify({
+    httpStatus: legacy.httpStatus,
+    responseKind: legacy.responseKind,
+    codigo: legacy['error.codigo'],
+    mensaje: legacy['error.mensaje'],
+    tipo: legacy['error.tipo'],
+    backend: legacy['error.backend'],
+    creditoPresent: legacy.creditoPresent
+  })
+);
+
+console.log(
+  'DUAL RUN MIGRADO:',
+  JSON.stringify({
+    httpStatus: migrated.httpStatus,
+    responseKind: migrated.responseKind,
+    codigo: migrated['error.codigo'],
+    mensaje: migrated['error.mensaje'],
+    tipo: migrated['error.tipo'],
+    backend: migrated['error.backend'],
+    creditoPresent: migrated.creditoPresent
+  })
+);
+
+insomnia.test('Dual Run | mismo HTTP status', () => {
+  insomnia.expect(migrated.httpStatus).to.eql(legacy.httpStatus);
+});
+
+insomnia.test('Dual Run | mismo tipo de respuesta', () => {
+  insomnia.expect(migrated.responseKind).to.eql(legacy.responseKind);
+});
+
+insomnia.test('Dual Run | respuestas reconocidas', () => {
+  insomnia.expect(legacy.responseKind).to.not.eql('UNKNOWN');
+  insomnia.expect(migrated.responseKind).to.not.eql('UNKNOWN');
+});
+
+const fieldsToCompare =
+  legacy.responseKind === 'SOAP_FAULT' ||
+  migrated.responseKind === 'SOAP_FAULT'
+    ? FAULT_FIELDS
+    : ERROR_FIELDS;
+
+fieldsToCompare.forEach(field => {
+  insomnia.test('Dual Run | ' + field + ' idéntico', () => {
+    insomnia.expect(migrated[field]).to.deep.eql(legacy[field]);
+  });
+});
+
+if (
+  legacy.responseKind === 'FUNCTIONAL_RESPONSE' &&
+  migrated.responseKind === 'FUNCTIONAL_RESPONSE'
+) {
+  insomnia.test('Dual Run | presencia de bodyOut.credito idéntica', () => {
+    insomnia.expect(migrated.creditoPresent).to.eql(legacy.creditoPresent);
+  });
+
+  if (legacy.creditoPresent || migrated.creditoPresent) {
+    insomnia.test('Dual Run | bodyOut.credito idéntico', () => {
+      insomnia.expect(migrated.credito).to.deep.eql(legacy.credito);
+    });
+  }
+}
+
+if (EXPECTED_MODE === 'SUCCESS') {
+  insomnia.test('CA-01 | HTTP 200', () => {
+    insomnia.expect(migrated.httpStatus).to.eql(200);
+  });
+
+  insomnia.test('CA-01 | código de éxito 0 o 9696', () => {
+    insomnia.expect(migrated['error.codigo']).to.be.oneOf(['0', '9696']);
+  });
+
+  insomnia.test('CA-01 | bodyOut.credito informado', () => {
+    insomnia.expect(migrated.creditoPresent).to.eql(true);
+  });
+
+  insomnia.test('CA-01 | mensaje informado', () => {
+    insomnia.expect(migrated['error.mensaje']).to.not.eql('');
+  });
+
+  insomnia.test('CA-01 | backend 00633', () => {
+    insomnia.expect(migrated['error.backend']).to.eql('00633');
+  });
+}
+
+if (EXPECTED_MODE === 'VALIDATION_ERROR') {
+  const expectedMessage =
+    'El valor del campo ' + EXPECTED_FIELD + ' se encuentra vacio';
+
+  insomnia.test('CA-02 | código 1', () => {
+    insomnia.expect(migrated['error.codigo']).to.eql('1');
+  });
+
+  insomnia.test('CA-02 | mensaje exacto del campo', () => {
+    insomnia.expect(migrated['error.mensaje']).to.eql(expectedMessage);
+  });
+}
+
+if (EXPECTED_MODE === 'BUSINESS_ERROR') {
+  insomnia.test('CA-04 | HTTP 200', () => {
+    insomnia.expect(migrated.httpStatus).to.eql(200);
+  });
+
+  insomnia.test('CA-04 | código de negocio distinto de éxito', () => {
+    insomnia.expect(migrated['error.codigo']).to.not.be.oneOf([
+      '',
+      '0',
+      '9696'
+    ]);
+  });
+
+  insomnia.test('CA-04 | tipo ERROR', () => {
+    insomnia.expect(migrated['error.tipo']).to.eql('ERROR');
+  });
+
+  insomnia.test('CA-04 | recurso esperado', () => {
+    insomnia.expect(migrated['error.recurso']).to.eql(
+      'UMPProductos0191/consultarCreditoDesembolsoSFI01'
+    );
+  });
+
+  insomnia.test('CA-04 | backend 00633', () => {
+    insomnia.expect(migrated['error.backend']).to.eql('00633');
+  });
+}
+
+if (EXPECTED_MODE === 'TECHNICAL_ERROR') {
+  insomnia.test('CA-05 | código 9999', () => {
+    insomnia.expect(migrated['error.codigo']).to.eql('9999');
+  });
+
+  insomnia.test('CA-05 | backend 00650', () => {
+    insomnia.expect(migrated['error.backend']).to.eql('00650');
+  });
+
+  insomnia.test('CA-05 | mensaje técnico informado', () => {
+    insomnia.expect(migrated['error.mensaje']).to.not.eql('');
+  });
+}
+
+if (EXPECTED_MODE === 'SOAP_FAULT') {
+  insomnia.test('CA-06 | ambos generan SOAP Fault', () => {
+    insomnia.expect(legacy.responseKind).to.eql('SOAP_FAULT');
+    insomnia.expect(migrated.responseKind).to.eql('SOAP_FAULT');
+  });
+}
+
+if (EXPECTED_MODE === 'SOAP_FAULT_OR_9999') {
+  insomnia.test('EP-003 | SOAP Fault o código 9999', () => {
+    const accepted =
+      migrated.responseKind === 'SOAP_FAULT' ||
+      migrated['error.codigo'] === '9999';
+
+    insomnia.expect(accepted).to.eql(true);
+  });
+}
+
+
 Dual Run SOAP – WSProductos0143 / consultarCreditoDesembolsoSFI01
 1. Configuración en Insomnia
 Crear una petición auxiliar en la colección. Abrir Scripts > After-response y pegar el script de la sección 2. La petición auxiliar solo inicia la ejecución; el script envía consecutivamente el mismo XML a Legado y Migrado.
