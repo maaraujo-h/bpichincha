@@ -1,3 +1,15 @@
+const LEGACY_URL =
+  'http://10.60.128.58:6921/WsProductos0143/soap/WSProductos0143Request';
+
+const MIGRATED_URL =
+  'http://tpr-msa-sp-wsproductos0143.apps.ocpdev.uiotest.bpichinchatest.test/WSProductos0143/soap/WSProductos0143Request';
+
+const SOAP_ACTION = '';
+
+const EXPECTED_MODE = 'COMPARE_ONLY';
+
+const EXPECTED_FIELD = 'identificacion';
+
 Corrige la variable del ambiente
 
 En Insomnia abre Manage Environments y coloca:
