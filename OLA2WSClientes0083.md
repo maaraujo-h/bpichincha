@@ -1,3 +1,24 @@
+function responseBody(response) {
+  if (typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (
+    response.body &&
+    typeof response.body.toString === 'function'
+  ) {
+    return response.body.toString('utf8');
+  }
+
+  if (typeof response.text === 'function') {
+    return response.text();
+  }
+
+  throw new Error(
+    'Insomnia no devolvió el body de la respuesta como texto.'
+  );
+}
+
 Los triángulos amarillos son advertencias del editor por el ternario anidado, no son el timeout. Para eliminarlas, reemplaza las líneas 311–315:
 
 const historyRows = Array.isArray(migratedHistory)
