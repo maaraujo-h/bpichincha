@@ -1,3 +1,35 @@
+Los triángulos amarillos son advertencias del editor por el ternario anidado, no son el timeout. Para eliminarlas, reemplaza las líneas 311–315:
+
+const historyRows = Array.isArray(migratedHistory)
+  ? migratedHistory
+  : migratedHistory === undefined || migratedHistory === ''
+    ? []
+    : [migratedHistory];
+
+Por este bloque más compatible:
+
+let historyRows = [];
+
+if (Array.isArray(migratedHistory)) {
+  historyRows = migratedHistory;
+} else if (
+  migratedHistory !== undefined &&
+  migratedHistory !== null &&
+  migratedHistory !== ''
+) {
+  historyRows = [migratedHistory];
+}
+
+La validación siguiente se mantiene igual:
+
+testCase(
+  '[CA-02] histórico migrado contiene máximo 36 meses',
+  () => {
+    expectValue(historyRows.length).to.be.at.most(36);
+  }
+);
+
+Importante: estos avisos amarillos no causan el mensaje Timeout has reached. El timeout sucede antes de ejecutar el After-response, porque el endpoint no respondió en 30 segundos. El bloque anterior únicamente dejará el código sin esas advertencias visuales.
 # Dual Run WSClientes0083 — Insomnia
 
 ## 1. Uso
