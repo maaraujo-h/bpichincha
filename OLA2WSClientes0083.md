@@ -1,3 +1,587 @@
+/**
+ * WSClientes0083 - Dual Run
+ *
+ * La petición visible debe apuntar al servicio LEGADO.
+ * El script enviará el mismo XML al servicio MIGRADO.
+ */
+
+const xml2js = require('xml2js');
+
+const MIGRATED_ENDPOINT =
+  'http://tpr-msa-sp-wsclientes0083.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSClientes0083';
+
+const ERROR_FIELDS = [
+  'codigo',
+  'mensaje',
+  'mensajeNegocio',
+  'tipo',
+  'recurso',
+  'componente',
+  'backend'
+];
+
+const CLIENT_FIELDS = [
+  'usuarioBancs',
+  'nombreUsuario',
+  'nombreAgencia',
+  'identificacion',
+  'tipoIdentificacion',
+  'nombreCliente',
+  'tipoInterviniente',
+  'calificacion',
+  'numIFIS',
+  'numOperaciones',
+  'ifisVencidas',
+  'habilitadoCC',
+  'puntaje',
+  'cuotaEstimadaMensual',
+  'saldoDeudaTotal',
+  'cuotaEstimadaMensualTotalOI',
+  'saldoDeudaTotalOI',
+  'deudaPendiente',
+  'cuotaParalelo'
+];
+
+const CLIENT_BLOCKS = [
+  'infoSectorReal.sectorReal',
+  'infoSectorFinc.listSectorFincSBS.sectorFincSBS',
+  'infoSectorFinc.listSectorFincSEPS.sectorFincSEPS',
+  'creditosAprobadosSICOM',
+  'creditosAprobadosSBS',
+  'creditosAprobadosSEPS'
+];
+
+const REPORT_BLOCKS = [
+  'infoPichinchaAcumulado.dtPichinchaXHistAcumulado',
+  'analisisCreditos.sectorReal',
+  'analisisCreditos.sectorSBS',
+  'analisisCreditos.sectorSEPS'
+];
+
+function readRequestXml() {
+  let xml = '';
+
+  if (
+    insomnia.request &&
+    insomnia.request.body &&
+    typeof insomnia.request.body.raw === 'string'
+  ) {
+    xml = insomnia.request.body.raw;
+  }
+
+  if (!xml || !xml.trim()) {
+    const environmentXml =
+      insomnia.environment.get('dual_run_request_xml');
+
+    if (typeof environmentXml === 'string') {
+      xml = environmentXml;
+    }
+  }
+
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      'No se encontró el XML. Coloque el XML SOAP en Body.'
+    );
+  }
+
+  return insomnia.environment.replaceIn(xml).trim();
+}
+
+function detectOperation(xml) {
+  if (xml.indexOf('ConsultarClienteBuroCredito01') >= 0) {
+    return 'ConsultarClienteBuroCredito01';
+  }
+
+  if (xml.indexOf('ConsultarReporteBuroCredito01') >= 0) {
+    return 'ConsultarReporteBuroCredito01';
+  }
+
+  throw new Error(
+    'No se encontró una operación soportada dentro del XML.'
+  );
+}
+
+function sendMigratedRequest(xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml'
+  };
+
+  const soapAction =
+    insomnia.environment.get('dual_run_soap_action');
+
+  if (
+    typeof soapAction === 'string' &&
+    soapAction.trim()
+  ) {
+    headers.SOAPAction = soapAction.trim();
+  }
+
+  const migratedRequest = {
+    url: MIGRATED_ENDPOINT,
+    method: 'POST',
+    header: headers,
+    body: {
+      mode: 'raw',
+      raw: xml
+    }
+  };
+
+  return new Promise(function (resolve, reject) {
+    insomnia.sendRequest(
+      migratedRequest,
+      function (error, response) {
+        if (error) {
+          reject(
+            new Error(
+              'Error al invocar el servicio Migrado: ' +
+              (error.message || String(error))
+            )
+          );
+          return;
+        }
+
+        resolve(response);
+      }
+    );
+  });
+}
+
+function readMigratedBody(response) {
+  if (typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (
+    response.body &&
+    typeof response.body.toString === 'function'
+  ) {
+    return response.body.toString('utf8');
+  }
+
+  throw new Error(
+    'Insomnia no devolvió el body del Migrado como texto.'
+  );
+}
+
+function readMigratedStatus(response) {
+  if (response.code !== undefined) {
+    return Number(response.code);
+  }
+
+  return Number(response.status);
+}
+
+function parseXml(xml) {
+  return new Promise(function (resolve, reject) {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        trim: true,
+        normalize: false,
+        emptyTag: '',
+        tagNameProcessors: [
+          xml2js.processors.stripPrefix
+        ]
+      },
+      function (error, result) {
+        if (error) {
+          reject(
+            new Error(
+              'La respuesta contiene XML inválido: ' +
+              error.message
+            )
+          );
+          return;
+        }
+
+        resolve(result);
+      }
+    );
+  });
+}
+
+function getPath(object, path) {
+  const keys = path.split('.');
+  let current = object;
+
+  for (
+    let index = 0;
+    index < keys.length;
+    index += 1
+  ) {
+    if (
+      current === undefined ||
+      current === null
+    ) {
+      return undefined;
+    }
+
+    current = current[keys[index]];
+  }
+
+  return current;
+}
+
+function normalize(value) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(function (item) {
+      return normalize(item);
+    });
+  }
+
+  if (typeof value === 'object') {
+    const result = {};
+    const keys = Object.keys(value).sort();
+
+    keys.forEach(function (key) {
+      if (key !== '$') {
+        result[key] = normalize(value[key]);
+      }
+    });
+
+    return result;
+  }
+
+  return String(value);
+}
+
+function findResponseNode(parsedXml, operation) {
+  const soapBody =
+    getPath(parsedXml, 'Envelope.Body');
+
+  if (!soapBody) {
+    throw new Error(
+      'No se encontró Envelope.Body en la respuesta.'
+    );
+  }
+
+  if (soapBody.Fault) {
+    throw new Error(
+      'Se recibió un SOAP Fault: ' +
+      JSON.stringify(normalize(soapBody.Fault))
+    );
+  }
+
+  const responseName =
+    operation + 'Response';
+
+  const responseNode =
+    soapBody[responseName];
+
+  if (!responseNode) {
+    throw new Error(
+      'No se encontró el nodo ' + responseName
+    );
+  }
+
+  return responseNode;
+}
+
+function compareValue(
+  testName,
+  legacyValue,
+  migratedValue
+) {
+  insomnia.test(testName, function () {
+    insomnia
+      .expect(normalize(migratedValue))
+      .to.eql(normalize(legacyValue));
+  });
+}
+
+function validatePresent(testName, value) {
+  insomnia.test(testName, function () {
+    insomnia
+      .expect(value)
+      .to.not.equal(undefined);
+
+    insomnia
+      .expect(value)
+      .to.not.equal(null);
+  });
+}
+
+/*
+ * INICIO DE LA EJECUCIÓN
+ */
+
+const requestXml = readRequestXml();
+const operation = detectOperation(requestXml);
+
+/*
+ * La respuesta visible pertenece al Legado.
+ */
+
+const legacyStatus =
+  Number(insomnia.response.status);
+
+const legacyXml =
+  insomnia.response.text();
+
+/*
+ * Enviar el mismo request al Migrado.
+ */
+
+const migratedResponse =
+  await sendMigratedRequest(requestXml);
+
+const migratedStatus =
+  readMigratedStatus(migratedResponse);
+
+const migratedXml =
+  readMigratedBody(migratedResponse);
+
+/*
+ * Validaciones HTTP.
+ */
+
+insomnia.test(
+  '[HTTP] Legado responde 2xx',
+  function () {
+    insomnia
+      .expect(legacyStatus)
+      .to.be.within(200, 299);
+  }
+);
+
+insomnia.test(
+  '[HTTP] Migrado responde 2xx',
+  function () {
+    insomnia
+      .expect(migratedStatus)
+      .to.be.within(200, 299);
+  }
+);
+
+compareValue(
+  '[HTTP] Estado Legado igual a Migrado',
+  legacyStatus,
+  migratedStatus
+);
+
+/*
+ * Convertir las dos respuestas XML.
+ */
+
+const legacyParsed =
+  await parseXml(legacyXml);
+
+const migratedParsed =
+  await parseXml(migratedXml);
+
+const legacyOutput =
+  findResponseNode(
+    legacyParsed,
+    operation
+  );
+
+const migratedOutput =
+  findResponseNode(
+    migratedParsed,
+    operation
+  );
+
+/*
+ * Comparar siempre el bloque error.
+ */
+
+ERROR_FIELDS.forEach(function (field) {
+  const legacyErrorValue =
+    getPath(
+      legacyOutput,
+      'error.' + field
+    );
+
+  const migratedErrorValue =
+    getPath(
+      migratedOutput,
+      'error.' + field
+    );
+
+  validatePresent(
+    '[ERROR] Legado contiene error.' + field,
+    legacyErrorValue
+  );
+
+  validatePresent(
+    '[ERROR] Migrado contiene error.' + field,
+    migratedErrorValue
+  );
+
+  compareValue(
+    '[ERROR] error.' +
+      field +
+      ': Legado igual a Migrado',
+    legacyErrorValue,
+    migratedErrorValue
+  );
+});
+
+const legacyErrorCode =
+  normalize(
+    getPath(
+      legacyOutput,
+      'error.codigo'
+    )
+  );
+
+const migratedErrorCode =
+  normalize(
+    getPath(
+      migratedOutput,
+      'error.codigo'
+    )
+  );
+
+/*
+ * Comparar campos funcionales únicamente
+ * cuando ambos servicios responden código 0.
+ */
+
+if (
+  legacyErrorCode === '0' &&
+  migratedErrorCode === '0'
+) {
+  const legacyBodyOut =
+    legacyOutput.bodyOut;
+
+  const migratedBodyOut =
+    migratedOutput.bodyOut;
+
+  /*
+   * ConsultarClienteBuroCredito01
+   */
+
+  if (
+    operation ===
+    'ConsultarClienteBuroCredito01'
+  ) {
+    CLIENT_FIELDS.forEach(function (path) {
+      compareValue(
+        '[CLIENTE] bodyOut.' +
+          path +
+          ': Legado igual a Migrado',
+        getPath(legacyBodyOut, path),
+        getPath(migratedBodyOut, path)
+      );
+    });
+
+    CLIENT_BLOCKS.forEach(function (path) {
+      compareValue(
+        '[CLIENTE] bodyOut.' +
+          path +
+          ': Legado igual a Migrado',
+        getPath(legacyBodyOut, path),
+        getPath(migratedBodyOut, path)
+      );
+    });
+
+    insomnia.test(
+      '[CLIENTE] Calificación permitida',
+      function () {
+        const allowedRatings = [
+          'AAA',
+          'AA',
+          'A',
+          'Rechazado',
+          'Sin Informacion',
+          'Revision Manual'
+        ];
+
+        const migratedRating =
+          normalize(
+            getPath(
+              migratedBodyOut,
+              'calificacion'
+            )
+          );
+
+        insomnia
+          .expect(allowedRatings)
+          .to.include(migratedRating);
+      }
+    );
+  }
+
+  /*
+   * ConsultarReporteBuroCredito01
+   */
+
+  if (
+    operation ===
+    'ConsultarReporteBuroCredito01'
+  ) {
+    REPORT_BLOCKS.forEach(function (path) {
+      compareValue(
+        '[REPORTE] bodyOut.' +
+          path +
+          ': Legado igual a Migrado',
+        getPath(legacyBodyOut, path),
+        getPath(migratedBodyOut, path)
+      );
+    });
+
+    const migratedHistory =
+      getPath(
+        migratedBodyOut,
+        'infoPichinchaAcumulado.' +
+        'dtPichinchaXHistAcumulado'
+      );
+
+    let historyRows = [];
+
+    if (Array.isArray(migratedHistory)) {
+      historyRows = migratedHistory;
+    } else if (
+      migratedHistory !== undefined &&
+      migratedHistory !== null &&
+      migratedHistory !== ''
+    ) {
+      historyRows = [migratedHistory];
+    }
+
+    insomnia.test(
+      '[REPORTE] Histórico máximo 36 meses',
+      function () {
+        insomnia
+          .expect(historyRows.length)
+          .to.be.at.most(36);
+      }
+    );
+  }
+}
+
+/*
+ * Resumen en la consola de Insomnia.
+ */
+
+console.log(
+  JSON.stringify(
+    {
+      operacion: operation,
+      httpLegado: legacyStatus,
+      httpMigrado: migratedStatus,
+      codigoLegado: legacyErrorCode,
+      codigoMigrado: migratedErrorCode
+    },
+    null,
+    2
+  )
+);
 function responseBody(response) {
   if (typeof response.body === 'string') {
     return response.body;
