@@ -1,0 +1,877 @@
+# WSProductos0160 — Dual Run en Insomnia
+
+## Configuración
+
+1. Cree una petición `POST` apuntando al Legado: `http://10.60.128.85:6000/IntegrationBus/soap/WSProductos0160`.
+2. Coloque el XML SOAP en **Body → XML**.
+3. Pegue el siguiente código completo en **Scripts → After-response**.
+4. No inserte después opciones de `Response Handling`, porque pueden modificar el código pegado.
+5. Al pulsar **Send**, Insomnia ejecutará el Legado; el After-response enviará el mismo XML al Migrado y registrará las comparaciones en **Tests**.
+
+## Script
+
+```javascript
+const xml2js = require('xml2js');
+
+const MIGRATED_ENDPOINT =
+  'https://tnd-msa-sp-wsproductos0160-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSProductos0160';
+
+const ERROR_FIELDS = [
+  'codigo',
+  'mensaje',
+  'mensajeNegocio',
+  'tipo',
+  'recurso',
+  'componente',
+  'backend'
+];
+
+function readRequestXml() {
+  let xml = '';
+
+  if (
+    insomnia.request &&
+    insomnia.request.body &&
+    typeof insomnia.request.body.raw === 'string'
+  ) {
+    xml = insomnia.request.body.raw;
+  }
+
+  if (!xml || !xml.trim()) {
+    const environmentXml = insomnia.environment.get('dual_run_request_xml');
+    if (typeof environmentXml === 'string') {
+      xml = environmentXml;
+    }
+  }
+
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      'No se encontro el XML. Coloque la trama SOAP en Body como XML/raw.'
+    );
+  }
+
+  return insomnia.environment.replaceIn(xml).trim();
+}
+
+function readCurrentStatus() {
+  let status = insomnia.response.code;
+
+  if (status === undefined || status === null) {
+    status = insomnia.response.status;
+  }
+
+  return Number(status);
+}
+
+function sendMigrated(xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml'
+  };
+
+  const soapAction = insomnia.environment.get('dual_run_soap_action');
+  if (typeof soapAction === 'string' && soapAction.trim()) {
+    headers.SOAPAction = soapAction.trim();
+  }
+
+  const request = {
+    url: MIGRATED_ENDPOINT,
+    method: 'POST',
+    header: headers,
+    body: {
+      mode: 'raw',
+      raw: xml
+    }
+  };
+
+  return new Promise(function (resolve, reject) {
+    insomnia.sendRequest(request, function (error, response) {
+      if (error) {
+        reject(
+          new Error(
+            'No fue posible invocar el Migrado: ' +
+              (error.message || String(error))
+          )
+        );
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+function readSentStatus(response) {
+  let status = response.code;
+
+  if (status === undefined || status === null) {
+    status = response.status;
+  }
+
+  return Number(status);
+}
+
+function readSentBody(response) {
+  if (typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (response.body && typeof response.body.toString === 'function') {
+    return response.body.toString('utf8');
+  }
+
+  throw new Error('Insomnia no devolvio el body del Migrado como texto.');
+}
+
+function parseXml(xml) {
+  return new Promise(function (resolve, reject) {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        mergeAttrs: true,
+        trim: true,
+        emptyTag: '',
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      function (error, result) {
+        if (error) {
+          reject(new Error('XML invalido: ' + error.message));
+          return;
+        }
+
+        resolve(result);
+      }
+    );
+  });
+}
+
+function getPath(object, path) {
+  const keys = path.split('.');
+  let current = object;
+
+  for (let index = 0; index < keys.length; index += 1) {
+    if (current === undefined || current === null) {
+      return undefined;
+    }
+
+    current = current[keys[index]];
+  }
+
+  return current;
+}
+
+function normalize(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(function (item) {
+      return normalize(item);
+    });
+  }
+
+  if (typeof value === 'object') {
+    const result = {};
+
+    Object.keys(value)
+      .sort()
+      .forEach(function (key) {
+        result[key] = normalize(value[key]);
+      });
+
+    return result;
+  }
+
+  return String(value);
+}
+
+function asArray(value) {
+  if (value === undefined || value === null || value === '') {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return [value];
+}
+
+function stripLeadingZeros(value) {
+  const text = normalize(value);
+  const normalized = text.replace(/^0+(?=\d)/, '');
+
+  if (normalized === '') {
+    return '0';
+  }
+
+  return normalized;
+}
+
+function findOperationNode(parsed, responseMode) {
+  const soapBody = getPath(parsed, 'Envelope.Body');
+
+  if (!soapBody) {
+    throw new Error('No se encontro Envelope.Body en el XML.');
+  }
+
+  if (soapBody.Fault) {
+    throw new Error(
+      'Se recibio SOAP Fault: ' + JSON.stringify(normalize(soapBody.Fault))
+    );
+  }
+
+  let nodeName = 'ConsultarFirmasIndependientes01';
+  if (responseMode) {
+    nodeName = 'ConsultarFirmasIndependientes01Response';
+  }
+
+  if (!soapBody[nodeName]) {
+    throw new Error('No se encontro el nodo ' + nodeName + '.');
+  }
+
+  return soapBody[nodeName];
+}
+
+function extractAccounts(bodyOut) {
+  const possiblePaths = [
+    'cuentas.cuenta',
+    'listaCuentas.cuenta',
+    'cuenta'
+  ];
+
+  for (let index = 0; index < possiblePaths.length; index += 1) {
+    const value = getPath(bodyOut, possiblePaths[index]);
+    if (value !== undefined && value !== null) {
+      return asArray(value);
+    }
+  }
+
+  return [];
+}
+
+function compare(testName, legacyValue, migratedValue) {
+  insomnia.test(testName, function () {
+    insomnia.expect(normalize(migratedValue)).to.eql(normalize(legacyValue));
+  });
+}
+
+function validatePresent(testName, value) {
+  insomnia.test(testName, function () {
+    insomnia.expect(value).to.not.equal(undefined);
+    insomnia.expect(value).to.not.equal(null);
+  });
+}
+
+const requestXml = readRequestXml();
+const requestParsed = await parseXml(requestXml);
+const requestOperation = findOperationNode(requestParsed, false);
+
+const legacyStatus = readCurrentStatus();
+const legacyXml = insomnia.response.text();
+
+const migratedResponse = await sendMigrated(requestXml);
+const migratedStatus = readSentStatus(migratedResponse);
+const migratedXml = readSentBody(migratedResponse);
+
+insomnia.test('[HTTP] Legado responde 2xx', function () {
+  insomnia.expect(legacyStatus).to.be.within(200, 299);
+});
+
+insomnia.test('[HTTP] Migrado responde 2xx', function () {
+  insomnia.expect(migratedStatus).to.be.within(200, 299);
+});
+
+compare('[HTTP] Legado igual a Migrado', legacyStatus, migratedStatus);
+
+const legacyParsed = await parseXml(legacyXml);
+const migratedParsed = await parseXml(migratedXml);
+const legacyOutput = findOperationNode(legacyParsed, true);
+const migratedOutput = findOperationNode(migratedParsed, true);
+
+ERROR_FIELDS.forEach(function (field) {
+  const legacyValue = getPath(legacyOutput, 'error.' + field);
+  const migratedValue = getPath(migratedOutput, 'error.' + field);
+
+  validatePresent('[ERROR] Legado contiene error.' + field, legacyValue);
+  validatePresent('[ERROR] Migrado contiene error.' + field, migratedValue);
+
+  compare(
+    '[ERROR] error.' + field + ': Legado igual a Migrado',
+    legacyValue,
+    migratedValue
+  );
+});
+
+const legacyCode = normalize(getPath(legacyOutput, 'error.codigo'));
+const migratedCode = normalize(getPath(migratedOutput, 'error.codigo'));
+
+if (legacyCode === '0' && migratedCode === '0') {
+  const legacyBodyOut = legacyOutput.bodyOut;
+  const migratedBodyOut = migratedOutput.bodyOut;
+
+  validatePresent('[BODY] Legado contiene bodyOut', legacyBodyOut);
+  validatePresent('[BODY] Migrado contiene bodyOut', migratedBodyOut);
+
+  const legacyAccounts = extractAccounts(legacyBodyOut);
+  const migratedAccounts = extractAccounts(migratedBodyOut);
+
+  compare(
+    '[CA-01/CA-02] Cantidad de cuentas: Legado igual a Migrado',
+    legacyAccounts.length,
+    migratedAccounts.length
+  );
+
+  compare(
+    '[CA-01/CA-02/CA-05/CA-06] Cuentas completas: Legado igual a Migrado',
+    legacyAccounts,
+    migratedAccounts
+  );
+
+  migratedAccounts.forEach(function (account, index) {
+    const legacyAccount = legacyAccounts[index];
+
+    compare(
+      '[CUENTA ' + (index + 1) + '] num: Legado igual a Migrado',
+      getPath(legacyAccount, 'num'),
+      getPath(account, 'num')
+    );
+
+    compare(
+      '[CUENTA ' + (index + 1) + '] unico: Legado igual a Migrado',
+      getPath(legacyAccount, 'unico'),
+      getPath(account, 'unico')
+    );
+
+    compare(
+      '[CUENTA ' + (index + 1) + '] obsTipoFirma: Legado igual a Migrado',
+      getPath(legacyAccount, 'obsTipoFirma'),
+      getPath(account, 'obsTipoFirma')
+    );
+
+    insomnia.test(
+      '[CUENTA ' + (index + 1) + '] unico contiene S o N',
+      function () {
+        insomnia.expect(['S', 'N']).to.include(normalize(account.unico));
+      }
+    );
+
+    if (normalize(account.unico) === 'S') {
+      insomnia.test(
+        '[CUENTA ' + (index + 1) + '] Firmante unico tiene observacion',
+        function () {
+          insomnia.expect(normalize(account.obsTipoFirma)).to.not.equal('');
+        }
+      );
+    }
+  });
+
+  const requestAccounts = asArray(
+    getPath(requestOperation, 'bodyIn.cuentas.cuenta')
+  );
+
+  if (requestAccounts.length === migratedAccounts.length) {
+    requestAccounts.forEach(function (requestAccount, index) {
+      const expectedNumber = stripLeadingZeros(requestAccount.num);
+      const actualNumber = stripLeadingZeros(migratedAccounts[index].num);
+
+      compare(
+        '[CA-05 CUENTA ' + (index + 1) + '] Numero normalizado',
+        expectedNumber,
+        actualNumber
+      );
+    });
+  }
+}
+
+console.log(
+  JSON.stringify(
+    {
+      operacion: 'ConsultarFirmasIndependientes01',
+      httpLegado: legacyStatus,
+      httpMigrado: migratedStatus,
+      codigoLegado: legacyCode,
+      codigoMigrado: migratedCode
+    },
+    null,
+    2
+  )
+);
+```
+
+## Matriz para JIRA
+
+| ID | CA | Tipo | Datos / precondición | Resultado esperado |
+|---|---|---|---|---|
+| EP-001 | CA-01 | Nominal | `cif=1711089364`; `cuenta.num=2204046002`; backend devuelve un firmante con el mismo CIF | HTTP 2xx, código `0`, mensaje `OK`, `unico=S`, observación informada y equivalencia Legado/Migrado |
+| EP-002 | CA-02 | Alterno | Cuenta válida; backend devuelve dos firmantes | Código `0`, mensaje `OK`, `unico=N` y equivalencia Legado/Migrado |
+| EP-003 | CA-02 | Alterno | Cuenta válida; único firmante con CIF diferente al enviado | Código `0`, mensaje `OK`, `unico=N` y equivalencia Legado/Migrado |
+| EP-004 | CA-05 | Transformación | `cuenta.num=0002204046002` | Se normaliza a `2204046002` antes de invocar backend; respuesta equivalente |
+| EP-005 | CA-03 | Negativo | `cif=""` | Detiene procesamiento; código `0012`; mensaje `Se requiere el cif del cliente`; error equivalente |
+| EP-006 | CA-03 | Negativo | Omitir nodo `cif` | Mismo error obligatorio `0012` y equivalencia del bloque error |
+| EP-007 | CA-04 | Negativo | `<cuenta><num/></cuenta>` | Código `1`; mensaje `Un Valor del atributo num del campo cuenta esta vacío o inválido` |
+| EP-008 | CA-04 | Negativo | Omitir `num` en una cuenta | Código `1`, mensaje definido y detención controlada |
+| EP-009 | CA-04 | Negativo | Lista con una cuenta válida y otra vacía | Código `1`; misma prioridad de validación en Legado y Migrado |
+| EP-010 | CA-01/02 | Nominal | Varias cuentas válidas con resultados S y N | Se conserva cantidad y orden; `num`, `unico` y `obsTipoFirma` son equivalentes |
+| EP-011 | CA-06 | Error negocio | Backend retorna `0188`; `flagUnico=S` | Respuesta final código `0`, `unico=S`, `obsTipoFirma=Independiente` |
+| EP-012 | CA-06 | Error negocio | Backend retorna `0188`; `flagUnico` vacío | Respuesta final código `0`, `unico=S`, `obsTipoFirma=Independiente` |
+| EP-013 | CA-07 | Error técnico | Backend devuelve código distinto de `0` y `0188` | Se propaga íntegramente el objeto error y ambos servicios coinciden |
+| EP-014 | CA-07 | Error técnico | Backend no disponible o timeout controlado | Manejo técnico conforme al contrato, sin respuesta parcial inconsistente |
+| EP-015 | CA-08 | Observabilidad | GUID/unicidad conocidos y acceso al pod | Logs de entrada, iteración por cuenta y salida correlacionables |
+| EP-016 | CA-09 | Observabilidad | Transacción ejecutada en OCP4 | Traza visible en Dynatrace con latencia y error correctos |
+| EP-017 | CA-10 | Rendimiento | Carga referencial de 128 TPS | p95 menor a 800 ms y HTTP 5xx menor o igual a 3%, sujetos a confirmación |
+| EP-018 | CA-11 | Documentación | Desarrollo finalizado | Diagrama ICE Panel y documento técnico actualizados y aprobados |
+
+## Observaciones
+
+- El ejemplo de respuesta entregado no contiene `bodyOut`. El script admite `bodyOut.cuentas.cuenta`, `bodyOut.listaCuentas.cuenta` o `bodyOut.cuenta`; si el XML real usa otra ruta, debe ajustarse `extractAccounts`.
+- Se comparan exactamente los siete campos de `<error>`. Si `recurso` o `componente` cambian intencionalmente por el nombre del microservicio migrado, esa diferencia debe aprobarse y documentarse como excepción.
+- La ejecución de SLA de 128 TPS no corresponde a Insomnia; debe realizarse con k6 o JMeter.
+
+Referencia: https://developer.konghq.com/insomnia/scripts/
+
+# WSProductos0160 — Dual Run en Insomnia
+
+## Configuración
+
+1. Cree una petición `POST` apuntando al Legado: `http://10.60.128.85:6000/IntegrationBus/soap/WSProductos0160`.
+2. Coloque el XML SOAP en **Body → XML**.
+3. Pegue el siguiente código completo en **Scripts → After-response**.
+4. No inserte después opciones de `Response Handling`, porque pueden modificar el código pegado.
+5. Al pulsar **Send**, Insomnia ejecutará el Legado; el After-response enviará el mismo XML al Migrado y registrará las comparaciones en **Tests**.
+
+## Script
+
+```javascript
+const xml2js = require('xml2js');
+
+const MIGRATED_ENDPOINT =
+  'https://tnd-msa-sp-wsproductos0160-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSProductos0160';
+
+const ERROR_FIELDS = [
+  'codigo',
+  'mensaje',
+  'mensajeNegocio',
+  'tipo',
+  'recurso',
+  'componente',
+  'backend'
+];
+
+function readRequestXml() {
+  let xml = '';
+
+  if (
+    insomnia.request &&
+    insomnia.request.body &&
+    typeof insomnia.request.body.raw === 'string'
+  ) {
+    xml = insomnia.request.body.raw;
+  }
+
+  if (!xml || !xml.trim()) {
+    const environmentXml = insomnia.environment.get('dual_run_request_xml');
+    if (typeof environmentXml === 'string') {
+      xml = environmentXml;
+    }
+  }
+
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      'No se encontro el XML. Coloque la trama SOAP en Body como XML/raw.'
+    );
+  }
+
+  return insomnia.environment.replaceIn(xml).trim();
+}
+
+function readCurrentStatus() {
+  let status = insomnia.response.code;
+
+  if (status === undefined || status === null) {
+    status = insomnia.response.status;
+  }
+
+  return Number(status);
+}
+
+function sendMigrated(xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml'
+  };
+
+  const soapAction = insomnia.environment.get('dual_run_soap_action');
+  if (typeof soapAction === 'string' && soapAction.trim()) {
+    headers.SOAPAction = soapAction.trim();
+  }
+
+  const request = {
+    url: MIGRATED_ENDPOINT,
+    method: 'POST',
+    header: headers,
+    body: {
+      mode: 'raw',
+      raw: xml
+    }
+  };
+
+  return new Promise(function (resolve, reject) {
+    insomnia.sendRequest(request, function (error, response) {
+      if (error) {
+        reject(
+          new Error(
+            'No fue posible invocar el Migrado: ' +
+              (error.message || String(error))
+          )
+        );
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+function readSentStatus(response) {
+  let status = response.code;
+
+  if (status === undefined || status === null) {
+    status = response.status;
+  }
+
+  return Number(status);
+}
+
+function readSentBody(response) {
+  if (typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (response.body && typeof response.body.toString === 'function') {
+    return response.body.toString('utf8');
+  }
+
+  throw new Error('Insomnia no devolvio el body del Migrado como texto.');
+}
+
+function parseXml(xml) {
+  return new Promise(function (resolve, reject) {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        mergeAttrs: true,
+        trim: true,
+        emptyTag: '',
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      function (error, result) {
+        if (error) {
+          reject(new Error('XML invalido: ' + error.message));
+          return;
+        }
+
+        resolve(result);
+      }
+    );
+  });
+}
+
+function getPath(object, path) {
+  const keys = path.split('.');
+  let current = object;
+
+  for (let index = 0; index < keys.length; index += 1) {
+    if (current === undefined || current === null) {
+      return undefined;
+    }
+
+    current = current[keys[index]];
+  }
+
+  return current;
+}
+
+function normalize(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(function (item) {
+      return normalize(item);
+    });
+  }
+
+  if (typeof value === 'object') {
+    const result = {};
+
+    Object.keys(value)
+      .sort()
+      .forEach(function (key) {
+        result[key] = normalize(value[key]);
+      });
+
+    return result;
+  }
+
+  return String(value);
+}
+
+function asArray(value) {
+  if (value === undefined || value === null || value === '') {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return [value];
+}
+
+function stripLeadingZeros(value) {
+  const text = normalize(value);
+  const normalized = text.replace(/^0+(?=\d)/, '');
+
+  if (normalized === '') {
+    return '0';
+  }
+
+  return normalized;
+}
+
+function findOperationNode(parsed, responseMode) {
+  const soapBody = getPath(parsed, 'Envelope.Body');
+
+  if (!soapBody) {
+    throw new Error('No se encontro Envelope.Body en el XML.');
+  }
+
+  if (soapBody.Fault) {
+    throw new Error(
+      'Se recibio SOAP Fault: ' + JSON.stringify(normalize(soapBody.Fault))
+    );
+  }
+
+  let nodeName = 'ConsultarFirmasIndependientes01';
+  if (responseMode) {
+    nodeName = 'ConsultarFirmasIndependientes01Response';
+  }
+
+  if (!soapBody[nodeName]) {
+    throw new Error('No se encontro el nodo ' + nodeName + '.');
+  }
+
+  return soapBody[nodeName];
+}
+
+function extractAccounts(bodyOut) {
+  const possiblePaths = [
+    'cuentas.cuenta',
+    'listaCuentas.cuenta',
+    'cuenta'
+  ];
+
+  for (let index = 0; index < possiblePaths.length; index += 1) {
+    const value = getPath(bodyOut, possiblePaths[index]);
+    if (value !== undefined && value !== null) {
+      return asArray(value);
+    }
+  }
+
+  return [];
+}
+
+function compare(testName, legacyValue, migratedValue) {
+  insomnia.test(testName, function () {
+    insomnia.expect(normalize(migratedValue)).to.eql(normalize(legacyValue));
+  });
+}
+
+function validatePresent(testName, value) {
+  insomnia.test(testName, function () {
+    insomnia.expect(value).to.not.equal(undefined);
+    insomnia.expect(value).to.not.equal(null);
+  });
+}
+
+const requestXml = readRequestXml();
+const requestParsed = await parseXml(requestXml);
+const requestOperation = findOperationNode(requestParsed, false);
+
+const legacyStatus = readCurrentStatus();
+const legacyXml = insomnia.response.text();
+
+const migratedResponse = await sendMigrated(requestXml);
+const migratedStatus = readSentStatus(migratedResponse);
+const migratedXml = readSentBody(migratedResponse);
+
+insomnia.test('[HTTP] Legado responde 2xx', function () {
+  insomnia.expect(legacyStatus).to.be.within(200, 299);
+});
+
+insomnia.test('[HTTP] Migrado responde 2xx', function () {
+  insomnia.expect(migratedStatus).to.be.within(200, 299);
+});
+
+compare('[HTTP] Legado igual a Migrado', legacyStatus, migratedStatus);
+
+const legacyParsed = await parseXml(legacyXml);
+const migratedParsed = await parseXml(migratedXml);
+const legacyOutput = findOperationNode(legacyParsed, true);
+const migratedOutput = findOperationNode(migratedParsed, true);
+
+ERROR_FIELDS.forEach(function (field) {
+  const legacyValue = getPath(legacyOutput, 'error.' + field);
+  const migratedValue = getPath(migratedOutput, 'error.' + field);
+
+  validatePresent('[ERROR] Legado contiene error.' + field, legacyValue);
+  validatePresent('[ERROR] Migrado contiene error.' + field, migratedValue);
+
+  compare(
+    '[ERROR] error.' + field + ': Legado igual a Migrado',
+    legacyValue,
+    migratedValue
+  );
+});
+
+const legacyCode = normalize(getPath(legacyOutput, 'error.codigo'));
+const migratedCode = normalize(getPath(migratedOutput, 'error.codigo'));
+
+if (legacyCode === '0' && migratedCode === '0') {
+  const legacyBodyOut = legacyOutput.bodyOut;
+  const migratedBodyOut = migratedOutput.bodyOut;
+
+  validatePresent('[BODY] Legado contiene bodyOut', legacyBodyOut);
+  validatePresent('[BODY] Migrado contiene bodyOut', migratedBodyOut);
+
+  const legacyAccounts = extractAccounts(legacyBodyOut);
+  const migratedAccounts = extractAccounts(migratedBodyOut);
+
+  compare(
+    '[CA-01/CA-02] Cantidad de cuentas: Legado igual a Migrado',
+    legacyAccounts.length,
+    migratedAccounts.length
+  );
+
+  compare(
+    '[CA-01/CA-02/CA-05/CA-06] Cuentas completas: Legado igual a Migrado',
+    legacyAccounts,
+    migratedAccounts
+  );
+
+  migratedAccounts.forEach(function (account, index) {
+    const legacyAccount = legacyAccounts[index];
+
+    compare(
+      '[CUENTA ' + (index + 1) + '] num: Legado igual a Migrado',
+      getPath(legacyAccount, 'num'),
+      getPath(account, 'num')
+    );
+
+    compare(
+      '[CUENTA ' + (index + 1) + '] unico: Legado igual a Migrado',
+      getPath(legacyAccount, 'unico'),
+      getPath(account, 'unico')
+    );
+
+    compare(
+      '[CUENTA ' + (index + 1) + '] obsTipoFirma: Legado igual a Migrado',
+      getPath(legacyAccount, 'obsTipoFirma'),
+      getPath(account, 'obsTipoFirma')
+    );
+
+    insomnia.test(
+      '[CUENTA ' + (index + 1) + '] unico contiene S o N',
+      function () {
+        insomnia.expect(['S', 'N']).to.include(normalize(account.unico));
+      }
+    );
+
+    if (normalize(account.unico) === 'S') {
+      insomnia.test(
+        '[CUENTA ' + (index + 1) + '] Firmante unico tiene observacion',
+        function () {
+          insomnia.expect(normalize(account.obsTipoFirma)).to.not.equal('');
+        }
+      );
+    }
+  });
+
+  const requestAccounts = asArray(
+    getPath(requestOperation, 'bodyIn.cuentas.cuenta')
+  );
+
+  if (requestAccounts.length === migratedAccounts.length) {
+    requestAccounts.forEach(function (requestAccount, index) {
+      const expectedNumber = stripLeadingZeros(requestAccount.num);
+      const actualNumber = stripLeadingZeros(migratedAccounts[index].num);
+
+      compare(
+        '[CA-05 CUENTA ' + (index + 1) + '] Numero normalizado',
+        expectedNumber,
+        actualNumber
+      );
+    });
+  }
+}
+
+console.log(
+  JSON.stringify(
+    {
+      operacion: 'ConsultarFirmasIndependientes01',
+      httpLegado: legacyStatus,
+      httpMigrado: migratedStatus,
+      codigoLegado: legacyCode,
+      codigoMigrado: migratedCode
+    },
+    null,
+    2
+  )
+);
+```
+
+## Matriz para JIRA
+
+| ID | CA | Tipo | Datos / precondición | Resultado esperado |
+|---|---|---|---|---|
+| EP-001 | CA-01 | Nominal | `cif=1711089364`; `cuenta.num=2204046002`; backend devuelve un firmante con el mismo CIF | HTTP 2xx, código `0`, mensaje `OK`, `unico=S`, observación informada y equivalencia Legado/Migrado |
+| EP-002 | CA-02 | Alterno | Cuenta válida; backend devuelve dos firmantes | Código `0`, mensaje `OK`, `unico=N` y equivalencia Legado/Migrado |
+| EP-003 | CA-02 | Alterno | Cuenta válida; único firmante con CIF diferente al enviado | Código `0`, mensaje `OK`, `unico=N` y equivalencia Legado/Migrado |
+| EP-004 | CA-05 | Transformación | `cuenta.num=0002204046002` | Se normaliza a `2204046002` antes de invocar backend; respuesta equivalente |
+| EP-005 | CA-03 | Negativo | `cif=""` | Detiene procesamiento; código `0012`; mensaje `Se requiere el cif del cliente`; error equivalente |
+| EP-006 | CA-03 | Negativo | Omitir nodo `cif` | Mismo error obligatorio `0012` y equivalencia del bloque error |
+| EP-007 | CA-04 | Negativo | `<cuenta><num/></cuenta>` | Código `1`; mensaje `Un Valor del atributo num del campo cuenta esta vacío o inválido` |
+| EP-008 | CA-04 | Negativo | Omitir `num` en una cuenta | Código `1`, mensaje definido y detención controlada |
+| EP-009 | CA-04 | Negativo | Lista con una cuenta válida y otra vacía | Código `1`; misma prioridad de validación en Legado y Migrado |
+| EP-010 | CA-01/02 | Nominal | Varias cuentas válidas con resultados S y N | Se conserva cantidad y orden; `num`, `unico` y `obsTipoFirma` son equivalentes |
+| EP-011 | CA-06 | Error negocio | Backend retorna `0188`; `flagUnico=S` | Respuesta final código `0`, `unico=S`, `obsTipoFirma=Independiente` |
+| EP-012 | CA-06 | Error negocio | Backend retorna `0188`; `flagUnico` vacío | Respuesta final código `0`, `unico=S`, `obsTipoFirma=Independiente` |
+| EP-013 | CA-07 | Error técnico | Backend devuelve código distinto de `0` y `0188` | Se propaga íntegramente el objeto error y ambos servicios coinciden |
+| EP-014 | CA-07 | Error técnico | Backend no disponible o timeout controlado | Manejo técnico conforme al contrato, sin respuesta parcial inconsistente |
+| EP-015 | CA-08 | Observabilidad | GUID/unicidad conocidos y acceso al pod | Logs de entrada, iteración por cuenta y salida correlacionables |
+| EP-016 | CA-09 | Observabilidad | Transacción ejecutada en OCP4 | Traza visible en Dynatrace con latencia y error correctos |
+| EP-017 | CA-10 | Rendimiento | Carga referencial de 128 TPS | p95 menor a 800 ms y HTTP 5xx menor o igual a 3%, sujetos a confirmación |
+| EP-018 | CA-11 | Documentación | Desarrollo finalizado | Diagrama ICE Panel y documento técnico actualizados y aprobados |
+
+## Observaciones
+
+- El ejemplo de respuesta entregado no contiene `bodyOut`. El script admite `bodyOut.cuentas.cuenta`, `bodyOut.listaCuentas.cuenta` o `bodyOut.cuenta`; si el XML real usa otra ruta, debe ajustarse `extractAccounts`.
+- Se comparan exactamente los siete campos de `<error>`. Si `recurso` o `componente` cambian intencionalmente por el nombre del microservicio migrado, esa diferencia debe aprobarse y documentarse como excepción.
+- La ejecución de SLA de 128 TPS no corresponde a Insomnia; debe realizarse con k6 o JMeter.
+
+Referencia: https://developer.konghq.com/insomnia/scripts/
