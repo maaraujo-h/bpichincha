@@ -1,0 +1,461 @@
+/**
+ * WSClientes0014 - Dual Run Legado vs Migrado
+ * Ubicación: Insomnia > Scripts > After-response
+ *
+ * La petición visible debe apuntar al servicio LEGADO:
+ * http://10.60.128.85:2000/IntegrationBus/soap/WSClientes0014
+ *
+ * El script usa la respuesta visible como Legado y envía el mismo XML una sola
+ * vez al Migrado. Así se ejecutan exactamente dos llamadas.
+ */
+
+const xml2js = require('xml2js');
+
+const MIGRATED_ENDPOINT =
+  'http://tpr-msa-sp-wsclientes0014.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSClientes0014';
+
+const SUPPORTED_OPERATIONS = [
+  'ConsultarCodigoPostalCliente01',
+  'ActualizarCodigoPostalCliente32'
+];
+
+const ERROR_FIELDS = [
+  'codigo',
+  'mensaje',
+  'mensajeNegocio',
+  'tipo',
+  'recurso',
+  'componente',
+  'backend'
+];
+
+const BASIC_FIELDS = [
+  'cif',
+  'opcion',
+  'apellido',
+  'primerNombre',
+  'nombreClientesComerciales',
+  'tipoDireccion'
+];
+
+const INSTANCE_FIELDS = ['A', 'B', 'C', 'D', 'E'];
+
+const POSTAL_FIELDS = [
+  'codigoCiudad',
+  'provincia',
+  'codigoPais',
+  'poBox',
+  'poBoxNumero'
+];
+
+function readRequestXml() {
+  let xml = '';
+
+  if (
+    insomnia.request &&
+    insomnia.request.body &&
+    typeof insomnia.request.body.raw === 'string'
+  ) {
+    xml = insomnia.request.body.raw;
+  }
+
+  if (!xml || !xml.trim()) {
+    const environmentXml = insomnia.environment.get('dual_run_request_xml');
+
+    if (typeof environmentXml === 'string') {
+      xml = environmentXml;
+    }
+  }
+
+  if (!xml || !xml.trim()) {
+    throw new Error(
+      'No se encontró el XML SOAP. Colóquelo en Body o en dual_run_request_xml.'
+    );
+  }
+
+  const renderedXml = insomnia.environment.replaceIn(xml).trim();
+
+  if (renderedXml.indexOf('<<soapenv:Envelope') >= 0) {
+    throw new Error(
+      'El XML comienza con <<soapenv:Envelope. Elimine uno de los signos <.'
+    );
+  }
+
+  return renderedXml;
+}
+
+function detectOperation(xml) {
+  for (let index = 0; index < SUPPORTED_OPERATIONS.length; index += 1) {
+    const operation = SUPPORTED_OPERATIONS[index];
+
+    if (xml.indexOf(operation) >= 0) {
+      return operation;
+    }
+  }
+
+  throw new Error(
+    'El XML no contiene una operación soportada de WSClientes0014.'
+  );
+}
+
+function sendMigratedRequest(xml) {
+  const headers = {
+    'Content-Type': 'text/xml; charset=UTF-8',
+    Accept: 'text/xml, application/xml'
+  };
+
+  const soapAction = insomnia.environment.get('dual_run_soap_action');
+
+  if (typeof soapAction === 'string' && soapAction.trim()) {
+    headers.SOAPAction = soapAction.trim();
+  }
+
+  const request = {
+    url: MIGRATED_ENDPOINT,
+    method: 'POST',
+    header: headers,
+    body: {
+      mode: 'raw',
+      raw: xml
+    }
+  };
+
+  return new Promise(function (resolve, reject) {
+    insomnia.sendRequest(request, function (error, response) {
+      if (error) {
+        reject(
+          new Error(
+            'No fue posible invocar el servicio Migrado: ' +
+              (error.message || String(error))
+          )
+        );
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+function readCurrentStatus() {
+  let status = insomnia.response.code;
+
+  if (status === undefined || status === null) {
+    status = insomnia.response.status;
+  }
+
+  return Number(status);
+}
+
+function readSentStatus(response) {
+  let status = response.code;
+
+  if (status === undefined || status === null) {
+    status = response.status;
+  }
+
+  return Number(status);
+}
+
+function readSentBody(response) {
+  if (typeof response.body === 'string') {
+    return response.body;
+  }
+
+  if (response.body && typeof response.body.toString === 'function') {
+    return response.body.toString('utf8');
+  }
+
+  if (typeof response.text === 'function') {
+    return response.text();
+  }
+
+  throw new Error('El Migrado no devolvió el body como texto.');
+}
+
+function parseXml(xml, environmentName) {
+  return new Promise(function (resolve, reject) {
+    xml2js.parseString(
+      xml,
+      {
+        explicitArray: false,
+        explicitRoot: true,
+        trim: true,
+        normalize: false,
+        emptyTag: '',
+        tagNameProcessors: [xml2js.processors.stripPrefix]
+      },
+      function (error, result) {
+        if (error) {
+          reject(
+            new Error(
+              'La respuesta de ' + environmentName +
+                ' no contiene XML válido: ' + error.message
+            )
+          );
+          return;
+        }
+
+        resolve(result);
+      }
+    );
+  });
+}
+
+function getPath(object, path) {
+  const keys = path.split('.');
+  let current = object;
+
+  for (let index = 0; index < keys.length; index += 1) {
+    if (current === undefined || current === null) {
+      return undefined;
+    }
+
+    current = current[keys[index]];
+  }
+
+  return current;
+}
+
+function normalize(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(function (item) {
+      return normalize(item);
+    });
+  }
+
+  if (typeof value === 'object') {
+    const result = {};
+
+    Object.keys(value)
+      .sort()
+      .forEach(function (key) {
+        if (key !== '$') {
+          result[key] = normalize(value[key]);
+        }
+      });
+
+    return result;
+  }
+
+  return String(value);
+}
+
+function findResponseNode(parsedXml, operation, environmentName) {
+  const soapBody = getPath(parsedXml, 'Envelope.Body');
+
+  if (!soapBody) {
+    throw new Error(
+      'No se encontró Envelope.Body en la respuesta de ' + environmentName + '.'
+    );
+  }
+
+  if (soapBody.Fault) {
+    throw new Error(
+      environmentName + ' devolvió SOAP Fault: ' +
+        JSON.stringify(normalize(soapBody.Fault))
+    );
+  }
+
+  const nodeName = operation + 'Response';
+  const responseNode = soapBody[nodeName];
+
+  if (!responseNode) {
+    throw new Error(
+      'No se encontró ' + nodeName + ' en la respuesta de ' + environmentName + '.'
+    );
+  }
+
+  return responseNode;
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (value === undefined || value === null || value === '') {
+    return [];
+  }
+
+  return [value];
+}
+
+function selectedBasics(responseNode) {
+  const basics = getPath(
+    responseNode,
+    'bodyOut.detalleCasillaPostal.basicos'
+  );
+  const selected = {};
+
+  BASIC_FIELDS.forEach(function (field) {
+    selected[field] = normalize(getPath(basics, field));
+  });
+
+  selected.instancias = {};
+
+  INSTANCE_FIELDS.forEach(function (field) {
+    selected.instancias[field] = normalize(
+      getPath(basics, 'instancias.' + field)
+    );
+  });
+
+  return selected;
+}
+
+function selectedPostalRecords(responseNode) {
+  const records = asArray(
+    getPath(
+      responseNode,
+      'bodyOut.detalleCasillaPostal.apartadoPostal.tipos'
+    )
+  );
+
+  return records
+    .map(function (record) {
+      const selected = {};
+
+      POSTAL_FIELDS.forEach(function (field) {
+        selected[field] = normalize(getPath(record, field));
+      });
+
+      return selected;
+    })
+    .sort(function (left, right) {
+      const byPoBox = String(left.poBox).localeCompare(String(right.poBox));
+
+      if (byPoBox !== 0) {
+        return byPoBox;
+      }
+
+      return String(left.codigoCiudad).localeCompare(String(right.codigoCiudad));
+    });
+}
+
+function compareExact(testName, legacyValue, migratedValue) {
+  insomnia.test(testName, function () {
+    insomnia.expect(normalize(migratedValue)).to.eql(normalize(legacyValue));
+  });
+}
+
+function assertPresent(testName, value) {
+  insomnia.test(testName, function () {
+    insomnia.expect(value).to.not.equal(undefined);
+    insomnia.expect(value).to.not.equal(null);
+  });
+}
+
+/* INICIO DEL DUAL RUN */
+
+const requestXml = readRequestXml();
+const operation = detectOperation(requestXml);
+const legacyStatus = readCurrentStatus();
+const legacyXml = insomnia.response.text();
+const migratedResponse = await sendMigratedRequest(requestXml);
+const migratedStatus = readSentStatus(migratedResponse);
+const migratedXml = readSentBody(migratedResponse);
+
+insomnia.test('[HTTP] Legado responde 2xx', function () {
+  insomnia.expect(legacyStatus).to.be.within(200, 299);
+});
+
+insomnia.test('[HTTP] Migrado responde 2xx', function () {
+  insomnia.expect(migratedStatus).to.be.within(200, 299);
+});
+
+compareExact(
+  '[HTTP] Código de estado Legado = Migrado',
+  legacyStatus,
+  migratedStatus
+);
+
+const legacyParsed = await parseXml(legacyXml, 'Legado');
+const migratedParsed = await parseXml(migratedXml, 'Migrado');
+const legacyOutput = findResponseNode(legacyParsed, operation, 'Legado');
+const migratedOutput = findResponseNode(migratedParsed, operation, 'Migrado');
+
+ERROR_FIELDS.forEach(function (field) {
+  const legacyValue = getPath(legacyOutput, 'error.' + field);
+  const migratedValue = getPath(migratedOutput, 'error.' + field);
+
+  assertPresent('[ERROR] Legado contiene error.' + field, legacyValue);
+  assertPresent('[ERROR] Migrado contiene error.' + field, migratedValue);
+  compareExact(
+    '[ERROR] error.' + field + ': Legado = Migrado',
+    legacyValue,
+    migratedValue
+  );
+});
+
+const legacyCode = normalize(getPath(legacyOutput, 'error.codigo'));
+const migratedCode = normalize(getPath(migratedOutput, 'error.codigo'));
+
+if (
+  operation === 'ConsultarCodigoPostalCliente01' &&
+  legacyCode === '0' &&
+  migratedCode === '0'
+) {
+  const legacyBasics = selectedBasics(legacyOutput);
+  const migratedBasics = selectedBasics(migratedOutput);
+  const legacyRecords = selectedPostalRecords(legacyOutput);
+  const migratedRecords = selectedPostalRecords(migratedOutput);
+
+  compareExact(
+    '[CA-01] Datos básicos e instancias: Legado = Migrado',
+    legacyBasics,
+    migratedBasics
+  );
+
+  compareExact(
+    '[CA-01] Apartados postales: Legado = Migrado',
+    legacyRecords,
+    migratedRecords
+  );
+
+  insomnia.test('[CA-01] Migrado retorna máximo 5 apartados', function () {
+    insomnia.expect(migratedRecords.length).to.be.at.most(5);
+  });
+
+  migratedRecords.forEach(function (record, index) {
+    insomnia.test(
+      '[APARTADO ' + (index + 1) + '] poBox informado entre A y E',
+      function () {
+        insomnia.expect(record.poBox).to.be.oneOf(['A', 'B', 'C', 'D', 'E']);
+      }
+    );
+  });
+
+  insomnia.test('[CA-01] Los poBox no se repiten', function () {
+    const values = migratedRecords.map(function (record) {
+      return record.poBox;
+    });
+    const uniqueValues = values.filter(function (value, index) {
+      return values.indexOf(value) === index;
+    });
+
+    insomnia.expect(uniqueValues.length).to.eql(values.length);
+  });
+}
+
+console.log(
+  JSON.stringify(
+    {
+      servicio: 'WSClientes0014',
+      operacion: operation,
+      httpLegado: legacyStatus,
+      httpMigrado: migratedStatus,
+      codigoLegado: legacyCode,
+      codigoMigrado: migratedCode
+    },
+    null,
+    2
+  )
+);
