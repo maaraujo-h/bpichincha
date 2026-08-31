@@ -196,6 +196,10 @@ try {
     }, object);
   }
 
+  function valueOr(value, fallback) {
+    return value === undefined || value === null ? fallback : value;
+  }
+
   function canonical(value) {
     if (value === undefined) return '__UNDEFINED__';
     if (value === null) return '__NULL__';
@@ -228,11 +232,35 @@ try {
   }
 
   function httpCode(response) {
-    return String(response.code ?? response.status ?? response.statusCode ?? '');
+    if (response && response.code !== undefined && response.code !== null) {
+      return String(response.code);
+    }
+    if (response && response.status !== undefined && response.status !== null) {
+      return String(response.status);
+    }
+    if (response && response.statusCode !== undefined && response.statusCode !== null) {
+      return String(response.statusCode);
+    }
+    return '';
   }
 
   function responseTime(response) {
-    return response.responseTime ?? response.timingPhases?.total ?? null;
+    if (
+      response &&
+      response.responseTime !== undefined &&
+      response.responseTime !== null
+    ) {
+      return response.responseTime;
+    }
+    if (
+      response &&
+      response.timingPhases &&
+      response.timingPhases.total !== undefined &&
+      response.timingPhases.total !== null
+    ) {
+      return response.timingPhases.total;
+    }
+    return null;
   }
 
   function registerExactTest(name, legacyValue, migratedValue) {
@@ -263,13 +291,13 @@ try {
   const migratedPayload = migratedSoap.payload;
 
   const requestData = {
-    cuenta: String(getPath(requestPayload, 'bodyIn.cuenta') ?? ''),
-    cuentaHash: String(getPath(requestPayload, 'bodyIn.cuentaHash') ?? ''),
+    cuenta: String(valueOr(getPath(requestPayload, 'bodyIn.cuenta'), '')),
+    cuentaHash: String(valueOr(getPath(requestPayload, 'bodyIn.cuentaHash'), '')),
     firmaIndependiente: String(
-      getPath(requestPayload, 'bodyIn.firmaIndependiente') ?? '',
+      valueOr(getPath(requestPayload, 'bodyIn.firmaIndependiente'), ''),
     ),
-    flujoEstado: String(getPath(requestPayload, 'bodyIn.flujo.estado') ?? ''),
-    guid: String(getPath(requestPayload, 'headerIn.guid') ?? ''),
+    flujoEstado: String(valueOr(getPath(requestPayload, 'bodyIn.flujo.estado'), '')),
+    guid: String(valueOr(getPath(requestPayload, 'headerIn.guid'), '')),
   };
 
   // -------------------------------------------------------------------------
@@ -288,7 +316,7 @@ try {
   const legacyFlat = flatten(legacyPayload);
   const migratedFlat = flatten(migratedPayload);
   const allPaths = Array.from(
-    new Set([...Object.keys(legacyFlat), ...Object.keys(migratedFlat)]),
+    new Set(Object.keys(legacyFlat).concat(Object.keys(migratedFlat))),
   ).sort();
 
   const comparisonRows = [];
@@ -396,8 +424,8 @@ try {
 
   ['Legado', 'Migrado'].forEach((serviceName) => {
     const payload = serviceName === 'Legado' ? legacyPayload : migratedPayload;
-    const actualCode = String(getPath(payload, 'error.codigo') ?? '');
-    const actualMessage = String(getPath(payload, 'error.mensaje') ?? '');
+    const actualCode = String(valueOr(getPath(payload, 'error.codigo'), ''));
+    const actualMessage = String(valueOr(getPath(payload, 'error.mensaje'), ''));
 
     insomnia.test(`[CA] ${serviceName} retorna el codigo esperado`, () => {
       if (expectedCode === 'NON_ZERO') {
@@ -414,7 +442,7 @@ try {
     }
   });
 
-  if (String(getPath(migratedPayload, 'error.codigo') ?? '') === '0') {
+  if (String(valueOr(getPath(migratedPayload, 'error.codigo'), '')) === '0') {
     ['fechaApertura', 'estado', 'tasa', 'saldoPromedio'].forEach((field) => {
       insomnia.test(`[CA-01] Migrado informa bodyOut.${field}`, () => {
         const value = getPath(migratedPayload, `bodyOut.${field}`);
@@ -462,7 +490,13 @@ try {
 
   insomnia.environment.set('qa_comparison_report', JSON.stringify(report, null, 2));
   console.log('=== RESUMEN COMPARACION SOAP ===');
-  console.log(JSON.stringify({ ...report, tablaComparativa: undefined }, null, 2));
+  const reportSummary = {};
+  Object.keys(report).forEach((key) => {
+    if (key !== 'tablaComparativa') {
+      reportSummary[key] = report[key];
+    }
+  });
+  console.log(JSON.stringify(reportSummary, null, 2));
   if (typeof console.table === 'function') {
     console.table(comparisonRows);
   } else {
