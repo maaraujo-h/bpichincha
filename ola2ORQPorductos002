@@ -10,8 +10,7 @@
  * Insomnia incluye xml2js y permite top-level await.
  */
 
-try {
-  const xml2js = require('xml2js');
+const xml2js = require('xml2js');
 
   // -------------------------------------------------------------------------
   // CONFIGURACION
@@ -244,7 +243,7 @@ try {
     return '';
   }
 
-  function responseTime(response) {
+  function elapsedMsValue(response) {
     if (
       response &&
       response.responseTime !== undefined &&
@@ -269,6 +268,7 @@ try {
     });
   }
 
+  try {
   // -------------------------------------------------------------------------
   // EJECUCION CONSECUTIVA: PRIMERO LEGADO, DESPUES MIGRADO
   // -------------------------------------------------------------------------
@@ -473,12 +473,12 @@ try {
     legado: {
       url: LEGACY_URL,
       httpCode: httpCode(legacyResponse),
-      responseTimeMs: responseTime(legacyResponse),
+      responseTimeMs: elapsedMsValue(legacyResponse),
     },
     migrado: {
       url: MIGRATED_URL,
       httpCode: httpCode(migratedResponse),
-      responseTimeMs: responseTime(migratedResponse),
+      responseTimeMs: elapsedMsValue(migratedResponse),
     },
     totalCamposComparados: allPaths.length,
     camposIguales: comparisonRows.filter((row) => row.estado === 'IGUAL').length,
