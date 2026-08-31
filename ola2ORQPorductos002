@@ -1,117 +1,40 @@
 const legacyUrl =
 'http://10.60.128.86:6000/IntegrationBus/soap/ORQProductos0002';
 
-const migratedUrl =
-'https://tpr-msa-sp-orqproductos0002-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/ORQProductos0002';
+const body =
+await insomnia.environment.get('soapBody');
 
-const body = insomnia.request.getBody().text;
+await new Promise((resolve,reject)=>{
 
-function send(url){
+    insomnia.sendRequest({
 
-    return new Promise((resolve,reject)=>{
+        url: legacyUrl,
 
-        insomnia.sendRequest({
+        method: 'POST',
 
-            url: url,
-            method: 'POST',
+        headers:{
+            'Content-Type':'text/xml;charset=UTF-8'
+        },
 
-            headers: {
-                'Content-Type': 'text/xml;charset=UTF-8'
-            },
+        body:{
+            mimeType:'application/xml',
+            text: body
+        }
 
-            body:{
-                mimeType:'application/xml',
-                text: body
-            }
+    },(err,response)=>{
 
-        },(err,response)=>{
+        if(err){
 
-            if(err){
-                reject(err);
-            }
+            console.error(err);
+            reject(err);
+            return;
 
-            resolve(response);
+        }
 
-        });
+        console.log(response.status);
 
-    });
-
-}
-
-function get(xml,tag){
-
-   const regex =
-     new RegExp(`<${tag}>(.*?)<\\/${tag}>`,'s');
-
-   const match = xml.match(regex);
-
-   return match ? match[1].trim() : '';
-}
-
-function parse(xml){
-
-    return {
-
-        codigo:get(xml,'codigo'),
-        mensaje:get(xml,'mensaje'),
-        tipo:get(xml,'tipo'),
-        backend:get(xml,'backend'),
-
-        fechaApertura:get(xml,'fechaApertura'),
-        estado:get(xml,'estado'),
-        tasa:get(xml,'tasa'),
-        saldoPromedio:get(xml,'saldoPromedio'),
-
-        permiteAgregarAlias:
-            get(xml,'permiteAgregarAlias'),
-
-        alias:
-            get(xml,'alias'),
-
-        permiteActivarCupo:
-            get(xml,'permiteActivarCupo'),
-
-        cif:get(xml,'cif'),
-
-        identificacion:
-            get(xml,'identificacion'),
-
-        tipoAutorizacion:
-            get(xml,'tipoAutorizacion')
-    };
-
-}
-
-(async()=>{
-
-    const legacyResp =
-        await send(legacyUrl);
-
-    const migratedResp =
-        await send(migratedUrl);
-
-    const legacy =
-        parse(legacyResp.data);
-
-    const migrated =
-        parse(migratedResp.data);
-
-    Object.keys(legacy)
-    .forEach(field=>{
-
-        insomnia.test(
-            `${field} Legacy vs Migrated`,
-            ()=>{
-
-            insomnia.expect(
-                migrated[field]
-            ).to.eql(
-                legacy[field]
-            );
-
-        });
+        resolve();
 
     });
 
-})();
-``
+});
