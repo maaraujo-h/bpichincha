@@ -1,40 +1,476 @@
-const legacyUrl =
-'http://10.60.128.86:6000/IntegrationBus/soap/ORQProductos0002';
+/*
+ * Comparador SOAP Legado vs. Migrado para Insomnia.
+ *
+ * Uso recomendado:
+ * 1. Cree una solicitud de control en Insomnia.
+ * 2. Pegue este contenido en Scripts > After-response.
+ * 3. Defina opcionalmente las variables indicadas en CONFIGURACION.
+ * 4. Envie la solicitud de control y revise la pestana Tests y la consola.
+ *
+ * Insomnia incluye xml2js y permite top-level await.
+ */
 
-const body =
-await insomnia.environment.get('soapBody');
+try {
+  const xml2js = require('xml2js');
 
-await new Promise((resolve,reject)=>{
+  // -------------------------------------------------------------------------
+  // CONFIGURACION
+  // -------------------------------------------------------------------------
+  const LEGACY_URL =
+    insomnia.environment.get('qa_legacy_url') ||
+    'http://10.60.128.86:6000/IntegrationBus/soap/ORQProductos0002';
 
-    insomnia.sendRequest({
+  const MIGRATED_URL =
+    insomnia.environment.get('qa_migrated_url') ||
+    'https://tpr-msa-sp-orqproductos0002-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/ORQProductos0002';
 
-        url: legacyUrl,
+  const DEFAULT_REQUEST_XML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://bpichincha.com/servicios">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ser:ConsultaDetalleCuenta01>
+         <headerIn>
+            <dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
+            <empresa>0010</empresa>
+            <canal>02</canal>
+            <medio>020002</medio>
+            <aplicacion>00647</aplicacion>
+            <agencia>197</agencia>
+            <tipoTransaccion>302000201</tipoTransaccion>
+            <geolocalizacion>1234</geolocalizacion>
+            <usuario>USINTERT</usuario>
+            <unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
+            <guid>59cae047abad47d5b683388a132fbddf</guid>
+            <fechaHora>202506251508450015</fechaHora>
+            <filler/>
+            <idioma>es-EC</idioma>
+            <sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
+            <ip>0.0.0.0</ip>
+            <idCliente>0801545674</idCliente>
+            <tipoIdCliente>0001</tipoIdCliente>
+            <bancs>
+               <teller>00070560</teller>
+               <terminal>1</terminal>
+               <institucion>0010</institucion>
+               <agencia>1</agencia>
+               <estacion>1</estacion>
+               <aplicacion/>
+               <canal/>
+            </bancs>
+         </headerIn>
+         <bodyIn>
+            <cif>1742361</cif>
+            <cuenta>2204139713</cuenta>
+            <cuentaHash>34316f5737474b5469455574756d4c7872625a47385a6c384f6376696b652b415253726e666c64643345593d</cuentaHash>
+            <firmaIndependiente>true</firmaIndependiente>
+            <canales>
+               <canal><codigo>020002</codigo></canal>
+               <canal><codigo>030001</codigo></canal>
+            </canales>
+            <flujo>
+               <estado>iniciar</estado>
+               <campos>
+                  <campo><clave/><valor/></campo>
+                  <campo><clave/><valor/></campo>
+               </campos>
+            </flujo>
+         </bodyIn>
+      </ser:ConsultaDetalleCuenta01>
+   </soapenv:Body>
+</soapenv:Envelope>`;
 
-        method: 'POST',
+  const requestFromEnvironment = insomnia.environment.get('qa_soap_request');
+  const currentRequestBody =
+    insomnia.request && insomnia.request.body && typeof insomnia.request.body.raw === 'string'
+      ? insomnia.request.body.raw
+      : '';
 
-        headers:{
-            'Content-Type':'text/xml;charset=UTF-8'
-        },
+  // Prioridad: variable qa_soap_request > body XML de la solicitud actual > XML incluido.
+  const REQUEST_XML = String(
+    requestFromEnvironment ||
+      (currentRequestBody.includes('Envelope') ? currentRequestBody : '') ||
+      DEFAULT_REQUEST_XML,
+  );
 
-        body:{
-            mimeType:'application/xml',
-            text: body
+  const SOAP_ACTION = insomnia.environment.get('qa_soap_action');
+  const EXPECTED_MIGRATED_RESOURCE =
+    insomnia.environment.get('qa_expected_migrated_resource') ||
+    'tpr-msa-sp-orqproductos0002/ConsultaDetalleCuenta01';
+
+  // Para negativos complejos (por ejemplo hash invalido), configurar manualmente.
+  // Valores admitidos para qa_expected_code: un codigo exacto o NON_ZERO.
+  const CONFIGURED_EXPECTED_CODE = insomnia.environment.get('qa_expected_code');
+  const CONFIGURED_EXPECTED_MESSAGE = insomnia.environment.get('qa_expected_message');
+  const SCENARIO_NAME =
+    insomnia.environment.get('qa_scenario_name') || 'Comparacion Legado vs. Migrado';
+
+  // -------------------------------------------------------------------------
+  // UTILIDADES HTTP Y XML
+  // -------------------------------------------------------------------------
+  function sendSoap(url, xml) {
+    const header = {
+      'Content-Type': 'text/xml; charset=utf-8',
+      Accept: 'text/xml, application/xml',
+    };
+
+    if (SOAP_ACTION) {
+      header.SOAPAction = SOAP_ACTION;
+    }
+
+    const request = {
+      url,
+      method: 'POST',
+      header,
+      body: {
+        mode: 'raw',
+        raw: xml,
+      },
+    };
+
+    return new Promise((resolve, reject) => {
+      insomnia.sendRequest(request, (error, response) => {
+        if (error) {
+          reject(error);
+          return;
         }
+        resolve(response);
+      });
+    });
+  }
 
-    },(err,response)=>{
+  function responseText(response) {
+    if (response && typeof response.text === 'function') {
+      return response.text();
+    }
+    if (response && typeof response.body === 'string') {
+      return response.body;
+    }
+    if (response && response.body && typeof response.body.toString === 'function') {
+      return response.body.toString('utf8');
+    }
+    throw new Error('Insomnia no entrego un body de respuesta legible.');
+  }
 
-        if(err){
+  async function parseXml(xml) {
+    return xml2js.parseStringPromise(xml, {
+      explicitArray: false,
+      explicitRoot: true,
+      emptyTag: '',
+      trim: false,
+      tagNameProcessors: [(name) => name.replace(/^.*:/, '')],
+      attrNameProcessors: [(name) => name.replace(/^.*:/, '')],
+    });
+  }
 
-            console.error(err);
-            reject(err);
-            return;
+  function getSoapPayload(parsed) {
+    const envelope = parsed && parsed.Envelope;
+    const soapBody = envelope && envelope.Body;
+    if (!soapBody || typeof soapBody !== 'object') {
+      throw new Error('XML SOAP invalido: no se encontro Envelope.Body.');
+    }
 
-        }
+    const responseKey = Object.keys(soapBody).find((key) => key !== '$');
+    if (!responseKey) {
+      throw new Error('XML SOAP invalido: Body no contiene una operacion ni Fault.');
+    }
 
-        console.log(response.status);
+    return {
+      operation: responseKey,
+      payload: soapBody[responseKey],
+    };
+  }
 
-        resolve();
+  function getRequestPayload(parsed) {
+    const envelope = parsed && parsed.Envelope;
+    const soapBody = envelope && envelope.Body;
+    const operationKey = soapBody && Object.keys(soapBody).find((key) => key !== '$');
+    if (!operationKey) {
+      throw new Error('Request SOAP invalido: no se encontro la operacion.');
+    }
+    return soapBody[operationKey];
+  }
 
+  function getPath(object, path) {
+    return path.split('.').reduce((value, key) => {
+      if (value === undefined || value === null) return undefined;
+      return value[key];
+    }, object);
+  }
+
+  function canonical(value) {
+    if (value === undefined) return '__UNDEFINED__';
+    if (value === null) return '__NULL__';
+    if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+    if (typeof value === 'object') {
+      return `{${Object.keys(value)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
+        .join(',')}}`;
+    }
+    return JSON.stringify(String(value));
+  }
+
+  function flatten(value, path = '', output = {}) {
+    if (Array.isArray(value)) {
+      if (value.length === 0) output[path] = '[]';
+      value.forEach((item, index) => flatten(item, `${path}[${index}]`, output));
+      return output;
+    }
+
+    if (value !== null && typeof value === 'object') {
+      const keys = Object.keys(value).sort();
+      if (keys.length === 0) output[path] = '';
+      keys.forEach((key) => flatten(value[key], path ? `${path}.${key}` : key, output));
+      return output;
+    }
+
+    output[path] = value === undefined || value === null ? '' : String(value);
+    return output;
+  }
+
+  function httpCode(response) {
+    return String(response.code ?? response.status ?? response.statusCode ?? '');
+  }
+
+  function responseTime(response) {
+    return response.responseTime ?? response.timingPhases?.total ?? null;
+  }
+
+  function registerExactTest(name, legacyValue, migratedValue) {
+    insomnia.test(name, () => {
+      insomnia.expect(canonical(migratedValue)).to.eql(canonical(legacyValue));
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // EJECUCION CONSECUTIVA: PRIMERO LEGADO, DESPUES MIGRADO
+  // -------------------------------------------------------------------------
+  const legacyResponse = await sendSoap(LEGACY_URL, REQUEST_XML);
+  const migratedResponse = await sendSoap(MIGRATED_URL, REQUEST_XML);
+
+  const legacyXml = responseText(legacyResponse);
+  const migratedXml = responseText(migratedResponse);
+
+  const [requestParsed, legacyParsed, migratedParsed] = await Promise.all([
+    parseXml(REQUEST_XML),
+    parseXml(legacyXml),
+    parseXml(migratedXml),
+  ]);
+
+  const requestPayload = getRequestPayload(requestParsed);
+  const legacySoap = getSoapPayload(legacyParsed);
+  const migratedSoap = getSoapPayload(migratedParsed);
+  const legacyPayload = legacySoap.payload;
+  const migratedPayload = migratedSoap.payload;
+
+  const requestData = {
+    cuenta: String(getPath(requestPayload, 'bodyIn.cuenta') ?? ''),
+    cuentaHash: String(getPath(requestPayload, 'bodyIn.cuentaHash') ?? ''),
+    firmaIndependiente: String(
+      getPath(requestPayload, 'bodyIn.firmaIndependiente') ?? '',
+    ),
+    flujoEstado: String(getPath(requestPayload, 'bodyIn.flujo.estado') ?? ''),
+    guid: String(getPath(requestPayload, 'headerIn.guid') ?? ''),
+  };
+
+  // -------------------------------------------------------------------------
+  // COHERENCIA DEL REQUEST Y ASERCIONES DE CONTRATO
+  // -------------------------------------------------------------------------
+  insomnia.test(`[${SCENARIO_NAME}] La misma operacion SOAP responde en ambos servicios`, () => {
+    insomnia.expect(migratedSoap.operation).to.eql(legacySoap.operation);
+  });
+
+  registerExactTest(
+    `[${SCENARIO_NAME}] HTTP status Legado = Migrado`,
+    httpCode(legacyResponse),
+    httpCode(migratedResponse),
+  );
+
+  const legacyFlat = flatten(legacyPayload);
+  const migratedFlat = flatten(migratedPayload);
+  const allPaths = Array.from(
+    new Set([...Object.keys(legacyFlat), ...Object.keys(migratedFlat)]),
+  ).sort();
+
+  const comparisonRows = [];
+  const bugs = [];
+  const expectedExceptions = [];
+
+  allPaths.forEach((path) => {
+    const legacyValue = legacyFlat[path];
+    const migratedValue = migratedFlat[path];
+    const equal = legacyValue === migratedValue;
+    const isResource = path === 'error.recurso';
+    const validResourceException =
+      !equal && isResource && migratedValue === EXPECTED_MIGRATED_RESOURCE;
+
+    let status = 'IGUAL';
+    let observation = '';
+
+    if (validResourceException) {
+      status = 'EXCEPCION ESPERADA';
+      observation = 'Cambio de recurso autorizado por Arquitectura.';
+      expectedExceptions.push({ path, legacyValue, migratedValue });
+      insomnia.test(`[EXCEPCION AUTORIZADA] ${path}`, () => {
+        insomnia.expect(migratedValue).to.eql(EXPECTED_MIGRATED_RESOURCE);
+      });
+    } else if (!equal) {
+      status = 'BUG';
+      observation = 'Diferencia no autorizada entre Legado y Migrado.';
+      bugs.push({ path, legacyValue, migratedValue });
+      registerExactTest(`[BUG] ${path}: Legado = Migrado`, legacyValue, migratedValue);
+    } else {
+      registerExactTest(`[IGUAL] ${path}`, legacyValue, migratedValue);
+    }
+
+    comparisonRows.push({
+      campo: path,
+      legado: legacyValue,
+      migrado: migratedValue,
+      estado: status,
+      observacion: observation,
+    });
+  });
+
+  // Verificacion explicita de campos relevantes para los CA.
+  const selectedPaths = [
+    'bodyOut.fechaApertura',
+    'bodyOut.estado',
+    'bodyOut.tasa',
+    'bodyOut.saldoPromedio',
+    'bodyOut.permiteAgregarAlias',
+    'bodyOut.alias',
+    'bodyOut.permiteActivarCupo',
+    'bodyOut.canales',
+    'bodyOut.personasAutorizadas',
+    'bodyOut.chequeras',
+    'bodyOut.flujo.estado',
+    'error.codigo',
+    'error.mensaje',
+    'error.mensajeNegocio',
+    'error.tipo',
+    'error.componente',
+    'error.backend',
+  ];
+
+  selectedPaths.forEach((path) => {
+    registerExactTest(
+      `[CA - CAMPO SELECCIONADO] ${path}`,
+      getPath(legacyPayload, path),
+      getPath(migratedPayload, path),
+    );
+  });
+
+  // HeaderOut debe reflejar todos los valores recibidos en HeaderIn. El bloque
+  // documento puede ser agregado por el servicio y por eso no se toma del request.
+  const requestHeaderFlat = flatten(getPath(requestPayload, 'headerIn') || {});
+  Object.entries(requestHeaderFlat).forEach(([relativePath, requestValue]) => {
+    const legacyHeaderValue = legacyFlat[`headerOut.${relativePath}`];
+    const migratedHeaderValue = migratedFlat[`headerOut.${relativePath}`];
+
+    insomnia.test(`[COHERENCIA] headerIn.${relativePath} = headerOut Legado`, () => {
+      insomnia.expect(legacyHeaderValue).to.eql(requestValue);
+    });
+    insomnia.test(`[COHERENCIA] headerIn.${relativePath} = headerOut Migrado`, () => {
+      insomnia.expect(migratedHeaderValue).to.eql(requestValue);
+    });
+  });
+
+  // Resultado de negocio esperado. Para cuenta vacia/0 y flujo no parametrizado
+  // se infiere el CA; para otros negativos se usan variables de ambiente.
+  let expectedCode = CONFIGURED_EXPECTED_CODE;
+  let expectedMessage = CONFIGURED_EXPECTED_MESSAGE;
+
+  if (!expectedCode) {
+    if (!requestData.cuenta || requestData.cuenta === '0') {
+      expectedCode = '1';
+      expectedMessage = expectedMessage || 'Valor del campo cuenta vacio o invalido';
+    } else if (requestData.flujoEstado !== 'iniciar') {
+      expectedCode = '2';
+      expectedMessage =
+        expectedMessage || 'valor del estado del flujo no parametrizado';
+    } else {
+      expectedCode = '0';
+      expectedMessage = expectedMessage || 'OK';
+    }
+  }
+
+  ['Legado', 'Migrado'].forEach((serviceName) => {
+    const payload = serviceName === 'Legado' ? legacyPayload : migratedPayload;
+    const actualCode = String(getPath(payload, 'error.codigo') ?? '');
+    const actualMessage = String(getPath(payload, 'error.mensaje') ?? '');
+
+    insomnia.test(`[CA] ${serviceName} retorna el codigo esperado`, () => {
+      if (expectedCode === 'NON_ZERO') {
+        insomnia.expect(actualCode).to.not.eql('0');
+      } else {
+        insomnia.expect(actualCode).to.eql(String(expectedCode));
+      }
     });
 
-});
+    if (expectedMessage) {
+      insomnia.test(`[CA] ${serviceName} retorna el mensaje esperado`, () => {
+        insomnia.expect(actualMessage).to.eql(String(expectedMessage));
+      });
+    }
+  });
+
+  if (String(getPath(migratedPayload, 'error.codigo') ?? '') === '0') {
+    ['fechaApertura', 'estado', 'tasa', 'saldoPromedio'].forEach((field) => {
+      insomnia.test(`[CA-01] Migrado informa bodyOut.${field}`, () => {
+        const value = getPath(migratedPayload, `bodyOut.${field}`);
+        insomnia.expect(value).to.not.eql(undefined);
+        insomnia.expect(String(value)).to.not.eql('');
+      });
+    });
+
+    insomnia.test('[CA-01] Migrado incluye siempre una persona Propietario', () => {
+      const peopleNode = getPath(
+        migratedPayload,
+        'bodyOut.personasAutorizadas.personasAutorizada',
+      );
+      const people = Array.isArray(peopleNode) ? peopleNode : peopleNode ? [peopleNode] : [];
+      insomnia
+        .expect(people.some((person) => person.tipoAutorizacion === 'Propietario'))
+        .to.eql(true);
+    });
+  }
+
+  insomnia.test(`[RESULTADO] Sin diferencias no autorizadas`, () => {
+    insomnia.expect(bugs, JSON.stringify(bugs, null, 2)).to.have.lengthOf(0);
+  });
+
+  const report = {
+    escenario: SCENARIO_NAME,
+    request: requestData,
+    legado: {
+      url: LEGACY_URL,
+      httpCode: httpCode(legacyResponse),
+      responseTimeMs: responseTime(legacyResponse),
+    },
+    migrado: {
+      url: MIGRATED_URL,
+      httpCode: httpCode(migratedResponse),
+      responseTimeMs: responseTime(migratedResponse),
+    },
+    totalCamposComparados: allPaths.length,
+    camposIguales: comparisonRows.filter((row) => row.estado === 'IGUAL').length,
+    excepcionesEsperadas: expectedExceptions,
+    bugs,
+    resultado: bugs.length === 0 ? 'PASS' : 'FAIL',
+    tablaComparativa: comparisonRows,
+  };
+
+  insomnia.environment.set('qa_comparison_report', JSON.stringify(report, null, 2));
+  console.log('=== RESUMEN COMPARACION SOAP ===');
+  console.log(JSON.stringify({ ...report, tablaComparativa: undefined }, null, 2));
+  if (typeof console.table === 'function') {
+    console.table(comparisonRows);
+  } else {
+    console.log(JSON.stringify(comparisonRows, null, 2));
+  }
+} catch (error) {
+  console.error('Fallo controlado del comparador SOAP:', error);
+  insomnia.test('[ERROR DE EJECUCION] El comparador SOAP finaliza correctamente', () => {
+    throw error;
+  });
+}
