@@ -1,0 +1,105 @@
+const legacyUrl = "http://10.60.128.86:6000/IntegrationBus/soap/ORQProductos0002";
+const migratedUrl = "https://tpr-msa-sp-orqproductos0002-enp.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/ORQProductos0002";
+
+const requestBody = insomnia.request.getBody().text;
+
+const headers = {
+    "Content-Type": "text/xml;charset=UTF-8"
+};
+
+function sendRequest(url) {
+    return new Promise((resolve, reject) => {
+        insomnia.sendRequest(
+            {
+                url,
+                method: "POST",
+                headers,
+                body: {
+                    mimeType: "application/xml",
+                    text: requestBody
+                }
+            },
+            (err, response) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(response);
+                }
+            }
+        );
+    });
+}
+
+function getTagValue(xml, tag) {
+    const regex = new RegExp(`<${tag}>(.*?)<\\/${tag}>`, "s");
+    const match = xml.match(regex);
+    return match ? match[1].trim() : "";
+}
+
+function extractFields(xml) {
+
+    return {
+
+        // Error
+        errorCodigo: getTagValue(xml,'codigo'),
+        errorMensaje: getTagValue(xml,'mensaje'),
+        errorMensajeNegocio: getTagValue(xml,'mensajeNegocio'),
+        errorTipo: getTagValue(xml,'tipo'),
+        errorRecurso: getTagValue(xml,'recurso'),
+        errorComponente: getTagValue(xml,'componente'),
+        errorBackend: getTagValue(xml,'backend'),
+
+        // BodyOut
+        fechaApertura: getTagValue(xml,'fechaApertura'),
+        estado: getTagValue(xml,'estado'),
+        tasa: getTagValue(xml,'tasa'),
+        saldoPromedio: getTagValue(xml,'saldoPromedio'),
+        permiteAgregarAlias: getTagValue(xml,'permiteAgregarAlias'),
+        alias: getTagValue(xml,'alias'),
+        permiteActivarCupo: getTagValue(xml,'permiteActivarCupo'),
+
+        // Persona autorizada
+        cif: getTagValue(xml,'cif'),
+        nombre: getTagValue(xml,'nombre'),
+        identificacion: getTagValue(xml,'identificacion'),
+        tipoIdentificacion: getTagValue(xml,'tipoIdentificacion'),
+        tipoAutorizacion: getTagValue(xml,'tipoAutorizacion')
+    };
+}
+
+(async () => {
+
+    const legacyResponse = await sendRequest(legacyUrl);
+    const migratedResponse = await sendRequest(migratedUrl);
+
+    const legacyXml = legacyResponse.data;
+    const migratedXml = migratedResponse.data;
+
+    const legacy = extractFields(legacyXml);
+    const migrated = extractFields(migratedXml);
+
+    const ignoredFields = [
+        "errorRecurso"
+    ];
+
+    Object.keys(legacy).forEach(field => {
+
+        if (ignoredFields.includes(field)) {
+            return;
+        }
+
+        insomnia.test(`Comparar ${field}`, () => {
+            insomnia.expect(migrated[field]).to.eql(legacy[field]);
+        });
+
+    });
+
+    insomnia.test("HTTP Status Legacy", () => {
+        insomnia.expect(legacyResponse.status).to.eql(200);
+    });
+
+    insomnia.test("HTTP Status Migrated", () => {
+        insomnia.expect(migratedResponse.status).to.eql(200);
+    });
+
+})();
