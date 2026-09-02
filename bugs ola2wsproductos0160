@@ -1,0 +1,115 @@
+migrado
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/"
+	xmlns:NS2="http://bpichincha.com/servicios">
+	<NS1:Body>
+		<NS2:ConsultarFirmasIndependientes01Response>
+			<headerOut>
+				<dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
+				<empresa>0010</empresa>
+				<canal>02</canal>
+				<medio>020002</medio>
+				<aplicacion>00647</aplicacion>
+				<agencia>197</agencia>
+				<tipoTransaccion>302000201</tipoTransaccion>
+				<geolocalizacion>1234</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
+				<guid>59cae047abad47d5b683388a132fbddf</guid>
+				<fechaHora>202506251508450015</fechaHora>
+				<filler></filler>
+				<idioma>es-EC</idioma>
+				<sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
+				<ip>0.0.0.0</ip>
+				<idCliente>0801545674</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion></aplicacion>
+					<canal></canal>
+				</bancs>
+				<documento>
+					<fechaContable></fechaContable>
+					<numeroDocumento></numeroDocumento>
+					<journals>
+						<journal>
+							<valor></valor>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>9998</codigo>
+				<mensaje>Invalid characters -- ([2]-1,[5]S22018,[5]ABC123)</mensaje>
+				<mensajeNegocio></mensajeNegocio>
+				<tipo>FATAL</tipo>
+				<recurso>tnd-msa-sp-wsproductos0160/ConsultarFirmasIndependientes01</recurso>
+				<componente>ConsultarFirmasIndependientes01</componente>
+				<backend>00638</backend>
+			</error>
+		</NS2:ConsultarFirmasIndependientes01Response>
+	</NS1:Body>
+</NS1:Envelope>
+
+
+---------------------
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
+	<NS1:Body>
+		<NS2:ConsultarFirmasIndependientes01Response
+			xmlns:NS2="http://bpichincha.com/servicios">
+			<headerOut>
+				<dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
+				<empresa>0010</empresa>
+				<canal>02</canal>
+				<medio>020002</medio>
+				<aplicacion>00647</aplicacion>
+				<agencia>197</agencia>
+				<tipoTransaccion>302000201</tipoTransaccion>
+				<geolocalizacion>1234</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
+				<guid>59cae047abad47d5b683388a132fbddf</guid>
+				<fechaHora>202506251508450015</fechaHora>
+				<filler></filler>
+				<idioma>es-EC</idioma>
+				<sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
+				<ip>0.0.0.0</ip>
+				<idCliente>0801545674111</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion></aplicacion>
+					<canal></canal>
+				</bancs>
+				<documento>
+					<fechaContable></fechaContable>
+					<numeroDocumento></numeroDocumento>
+					<journals>
+						<journal>
+							<valor></valor>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>9998</codigo>
+				<mensaje>TCSBRKR1_BP-ESB-9998 - (): Invalid characters -- ([2]-1,[5]S22018,[5]ABC123)</mensaje>
+				<mensajeNegocio></mensajeNegocio>
+				<tipo>FATAL</tipo>
+				<recurso>WSProductos0160/ConsultarFirmasIndependientes01</recurso>
+				<componente>ConsultarFirmasIndependientes01</componente>
+				<backend>00638</backend>
+			</error>
+		</NS2:ConsultarFirmasIndependientes01Response>
+	</NS1:Body>
+</NS1:Envelope>
