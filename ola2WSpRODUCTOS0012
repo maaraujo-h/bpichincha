@@ -1,1 +1,187 @@
+3. Datos exactos para cada prueba
+Caso	numeroCuenta	canalReferido	Resultado esperado
+EP-001	2212545990	l	0 / OK y lista de canales
+EP-002	Vacío	l	1 / Valor del campo numeroCuenta vacío o inválido
+EP-003	2212545990	Un espacio	1 / Valor del campo canalReferido vacío o inválido
+EP-004	2300537207	i	Código 2 y mensaje del backend
+EP-005	1111222233	j	0 / OK y cuentaActiva=false
+EP-002
+<bodyIn>
+    <numeroCuenta></numeroCuenta>
+    <canalReferido>l</canalReferido>
+</bodyIn>
+EP-003
 
+Debe existir un espacio entre las etiquetas:
+
+<bodyIn>
+    <numeroCuenta>2212545990</numeroCuenta>
+    <canalReferido> </canalReferido>
+</bodyIn>
+4. Script automático para Insomnia
+
+Insomnia permite colocar pruebas en Scripts → After-response, ejecutarlas al recibir la respuesta y mostrarlas en el indicador Tests. También permite posteriormente ejecutar varias solicitudes mediante Collection Runner. Documentación oficial de scripts, documentación de Collection Runner.
+
+Pega este script en Scripts → After-response de cada request:
+
+const config = {
+  caseId: 'EP-001',
+  expectedCode: '0',
+  messageContains: 'OK',
+  expectChannelList: true,
+  expectedCuentaActiva: null,
+  requireNonEmptyMessage: false
+};
+
+const body = insomnia.response.text();
+
+function getTagValue(tagName) {
+  const expression = new RegExp(
+    `<(?:(?:[\\w.-]+):)?${tagName}(?:\\s[^>]*)?>\\s*([^<]*)\\s*<\\/(?:(?:[\\w.-]+):)?${tagName}\\s*>`,
+    'i'
+  );
+
+  const result = body.match(expression);
+  return result ? result[1].trim() : null;
+}
+
+const codigo = getTagValue('codigo');
+const mensaje = getTagValue('mensaje');
+
+insomnia.test(`${config.caseId} - HTTP 200`, () => {
+  insomnia.expect(insomnia.response.status).to.eql(200);
+});
+
+insomnia.test(`${config.caseId} - Respuesta SOAP`, () => {
+  insomnia.expect(body).to.match(/Envelope/i);
+});
+
+insomnia.test(`${config.caseId} - Sin SOAP Fault`, () => {
+  insomnia.expect(body).not.to.match(
+    /<(?:[\w.-]+:)?Fault(?:\s|>)/i
+  );
+});
+
+insomnia.test(
+  `${config.caseId} - Código ${config.expectedCode}`,
+  () => {
+    insomnia.expect(codigo).to.eql(config.expectedCode);
+  }
+);
+
+if (config.messageContains) {
+  insomnia.test(
+    `${config.caseId} - Mensaje esperado`,
+    () => {
+      insomnia.expect(mensaje || '').to.include(
+        config.messageContains
+      );
+    }
+  );
+}
+
+if (config.requireNonEmptyMessage) {
+  insomnia.test(
+    `${config.caseId} - Mensaje backend informado`,
+    () => {
+      insomnia.expect(mensaje).to.be.a('string');
+      insomnia.expect(mensaje.length).to.be.greaterThan(0);
+    }
+  );
+}
+
+if (config.expectChannelList) {
+  insomnia.test(
+    `${config.caseId} - Lista de canales informada`,
+    () => {
+      insomnia.expect(body).to.match(
+        /<(?:[\w.-]+:)?(?:canales|canal)(?:\s|>)/i
+      );
+    }
+  );
+}
+
+if (config.expectedCuentaActiva !== null) {
+  insomnia.test(
+    `${config.caseId} - cuentaActiva=${config.expectedCuentaActiva}`,
+    () => {
+      const elementPattern =
+        /<(?:[\w.-]+:)?cuentaActiva(?:\s[^>]*)?>\s*false\s*<\/(?:[\w.-]+:)?cuentaActiva>/i;
+
+      const attributePattern =
+        /\bcuentaActiva\s*=\s*["']false["']/i;
+
+      insomnia.expect(
+        elementPattern.test(body) ||
+        attributePattern.test(body)
+      ).to.eql(true);
+    }
+  );
+}
+5. Configuración para cada EP
+
+Solo cambia el bloque config al inicio del script.
+
+EP-001
+const config = {
+  caseId: 'EP-001',
+  expectedCode: '0',
+  messageContains: 'OK',
+  expectChannelList: true,
+  expectedCuentaActiva: null,
+  requireNonEmptyMessage: false
+};
+EP-002
+const config = {
+  caseId: 'EP-002',
+  expectedCode: '1',
+  messageContains: 'Valor del campo numeroCuenta vacío o inválido',
+  expectChannelList: false,
+  expectedCuentaActiva: null,
+  requireNonEmptyMessage: false
+};
+EP-003
+const config = {
+  caseId: 'EP-003',
+  expectedCode: '1',
+  messageContains: 'Valor del campo canalReferido vacío o inválido',
+  expectChannelList: false,
+  expectedCuentaActiva: null,
+  requireNonEmptyMessage: false
+};
+EP-004
+const config = {
+  caseId: 'EP-004',
+  expectedCode: '2',
+  messageContains: null,
+  expectChannelList: false,
+  expectedCuentaActiva: null,
+  requireNonEmptyMessage: true
+};
+EP-005
+const config = {
+  caseId: 'EP-005',
+  expectedCode: '0',
+  messageContains: 'OK',
+  expectChannelList: true,
+  expectedCuentaActiva: false,
+  requireNonEmptyMessage: false
+};
+6. Pruebas adicionales para mitigar riesgos
+
+Después de aprobar los cinco EP, agregaremos:
+
+numeroCuenta ausente.
+numeroCuenta con espacios.
+Cuenta con letras.
+Cuenta con caracteres especiales.
+Cuenta con menos o más dígitos.
+canalReferido ausente.
+canalReferido con varios espacios.
+Canal inválido como x.
+Canal en mayúscula: L, I, J.
+SOAPAction incorrecto.
+Error técnico del backend.
+Comparación de todos los campos del error.
+
+Primero confirma con Desarrollo o con el WSDL cuál es el SOAPAction correcto. Después crea y ejecuta solamente EP-001 en ambos servicios usando canalReferido=l. Envíame las dos respuestas y adaptamos el script a la estructura XML real antes de copiarlo a los demás casos.
