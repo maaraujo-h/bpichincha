@@ -1,63 +1,3 @@
-<NS1:Envelope
-	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
-	<NS1:Body>
-		<NS2:ModificarTitularidadCuenta22Response
-			xmlns:NS2="http://bpichincha.com/servicios">
-			<headerOut>
-				<dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
-				<empresa>0010</empresa>
-				<canal>02</canal>
-				<medio>020002</medio>
-				<aplicacion>00647</aplicacion>
-				<agencia>197</agencia>
-				<tipoTransaccion>302000201</tipoTransaccion>
-				<geolocalizacion>1234</geolocalizacion>
-				<usuario>USINTERT</usuario>
-				<unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
-				<guid>59cae047abad47d5b683388a132fbddf</guid>
-				<fechaHora>202506251508450015</fechaHora>
-				<filler></filler>
-				<idioma>es-EC</idioma>
-				<sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
-				<ip>0.0.0.0</ip>
-				<idCliente>0801545674</idCliente>
-				<tipoIdCliente>0001</tipoIdCliente>
-				<bancs>
-					<teller>00070560</teller>
-					<terminal>1</terminal>
-					<institucion>0010</institucion>
-					<agencia>1</agencia>
-					<estacion>1</estacion>
-					<aplicacion></aplicacion>
-					<canal></canal>
-				</bancs>
-				<documento>
-					<fechaContable></fechaContable>
-					<numeroDocumento></numeroDocumento>
-					<journals>
-						<journal>
-							<valor></valor>
-						</journal>
-					</journals>
-				</documento>
-			</headerOut>
-			<error>
-				<codigo>0</codigo>
-				<mensaje>TCSBRKR1_BP-OK</mensaje>
-				<mensajeNegocio></mensajeNegocio>
-				<tipo>INFO</tipo>
-				<recurso>WSProductos0114/ModificarTitularidadCuenta22</recurso>
-				<componente>WSProductos0114</componente>
-				<backend>00638</backend>
-			</error>
-		</NS2:ModificarTitularidadCuenta22Response>
-	</NS1:Body>
-</NS1:Envelope>
-
-
-
-
------------------MIGRADO
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <ns2:Envelope
 	xmlns:ns2="http://schemas.xmlsoap.org/soap/envelope/"
@@ -103,14 +43,72 @@
 				</documento>
 			</headerOut>
 			<error>
-				<codigo>0000</codigo>
-				<mensaje>Transaction successful</mensaje>
-				<mensajeNegocio>Transaction successful</mensajeNegocio>
-				<tipo>SUCCESS</tipo>
-				<recurso>tpr-msa-sp-wsproductos0114/ConsultarCotitularesCuenta01</recurso>
-				<componente>tpr-msa-sp-wsproductos0114</componente>
-				<backend>00638</backend>
+				<codigo>0108</codigo>
+				<mensaje>CUENTA NO EXISTE</mensaje>
+				<mensajeNegocio></mensajeNegocio>
+				<tipo>ERROR</tipo>
+				<recurso>tnd-msa-sp-wsproductos0114/ModificarTitularidadCuenta22</recurso>
+				<componente>TX060605</componente>
+				<backend>00045</backend>
 			</error>
 		</ns3:ModificarTitularidadCuenta22Response>
 	</ns2:Body>
+
+
+------------------------
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
+	<NS1:Body>
+		<NS2:ModificarTitularidadCuenta22Response
+			xmlns:NS2="http://bpichincha.com/servicios">
+			<headerOut>
+				<dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
+				<empresa>0010</empresa>
+				<canal>02</canal>
+				<medio>020002</medio>
+				<aplicacion>00647</aplicacion>
+				<agencia>197</agencia>
+				<tipoTransaccion>302000201</tipoTransaccion>
+				<geolocalizacion>1234</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
+				<guid>59cae047abad47d5b683388a132fbddf</guid>
+				<fechaHora>202506251508450015</fechaHora>
+				<filler></filler>
+				<idioma>es-EC</idioma>
+				<sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
+				<ip>0.0.0.0</ip>
+				<idCliente>0801545674</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion></aplicacion>
+					<canal></canal>
+				</bancs>
+				<documento>
+					<fechaContable></fechaContable>
+					<numeroDocumento></numeroDocumento>
+					<journals>
+						<journal>
+							<valor></valor>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>0108</codigo>
+				<mensaje>TCSBRKR1_BP-CUENTA NO EXISTE</mensaje>
+				<mensajeNegocio></mensajeNegocio>
+				<tipo>ERROR</tipo>
+				<recurso>UMPProductos0055/ModificarTitularidadCuenta23</recurso>
+				<componente>TX060605</componente>
+				<backend>00045</backend>
+			</error>
+		</NS2:ModificarTitularidadCuenta22Response>
+	</NS1:Body>
+</NS1:Envelope>
 </ns2:Envelope>
