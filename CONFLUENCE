@@ -1,3 +1,5 @@
+https://pichincha.atlassian.net/wiki/spaces/BPTPSRE/pages/6219431937/tnd-msa-sp-wsproductos0248
+
 https://pichincha.atlassian.net/wiki/spaces/BPTPSRE/pages/5984026702/DOCUMENTACION+SERVICIO+WSClientes0102
 http://10.60.128.85:2000/IntegrationBus/soap/WSClientes102
 curl --location "http://tnd-msa-sp-wsclientes0102.apps.ocptest.uiotest.bpichinchatest.test/IntegrationBus/soap/WSClientes0102"   --header "Content-Type: text/xml; charset=utf-8"
