@@ -1,3 +1,5 @@
+https://console-openshift-console.apps.ocptest.uiotest.bpichinchatest.test/k8s/cluster/projects
+
 Actúa como QA Automation especialista en pruebas de servicios SOAP con Insomnia.
 
 Necesito automatizar la comparación entre un servicio legado y un servicio migrado para validar que ambos respondan de forma equivalente ante los mismos escenarios de prueba.
