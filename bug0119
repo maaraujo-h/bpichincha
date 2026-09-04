@@ -1,0 +1,115 @@
+legado
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
+	<NS1:Body>
+		<NS2:ConsultarSegmentoSubsegmento01Response
+			xmlns:NS2="http://bpichincha.com/servicios">
+			<headerOut>
+				<dispositivo>MLj53KS7MhiSQACCkFspUvJQeS4dLC8AvN8EjSRh/t8</dispositivo>
+				<empresa>0010</empresa>
+				<canal>02</canal>
+				<medio>020002</medio>
+				<aplicacion>00647</aplicacion>
+				<agencia>197</agencia>
+				<tipoTransaccion>302000651</tipoTransaccion>
+				<geolocalizacion>1234</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>d4617a426ea94d2ba39b53914e344849</unicidad>
+				<guid>d4617a426ea94d2ba39b53914e344849</guid>
+				<fechaHora>202605291138260008</fechaHora>
+				<filler></filler>
+				<idioma>es-EC</idioma>
+				<sesion>383b793c-3bad-48a2-af66-1702547ea671</sesion>
+				<ip>0.0.0.0</ip>
+				<idCliente>1003256292</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion></aplicacion>
+					<canal></canal>
+				</bancs>
+				<documento>
+					<fechaContable></fechaContable>
+					<numeroDocumento></numeroDocumento>
+					<journals>
+						<journal>
+							<valor></valor>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>0155</codigo>
+				<mensaje>TCSBRKR1_BP-TELM   DBER</mensaje>
+				<mensajeNegocio></mensajeNegocio>
+				<tipo>ERROR</tipo>
+				<recurso>UMPClientes0131/ConsultarSegmentoSubsegmento01</recurso>
+				<componente>TX064030</componente>
+				<backend>00045</backend>
+			</error>
+		</NS2:ConsultarSegmentoSubsegmento01Response>
+	</NS1:Body>
+</NS1:Envelope>
+
+
+MIGRADO
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
+	<NS1:Body>
+		<NS2:ConsultarSegmentoSubsegmento01Response
+			xmlns:NS2="http://bpichincha.com/servicios">
+			<headerOut>
+				<dispositivo>MLj53KS7MhiSQACCkFspUvJQeS4dLC8AvN8EjSRh/t8</dispositivo>
+				<empresa>0010</empresa>
+				<canal>02</canal>
+				<medio>020002</medio>
+				<aplicacion>00647</aplicacion>
+				<agencia>197</agencia>
+				<tipoTransaccion>302000651</tipoTransaccion>
+				<geolocalizacion>1234</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad>d4617a426ea94d2ba39b53914e344850</unicidad>
+				<guid>d4617a426ea94d2ba39b53914e344850</guid>
+				<fechaHora>202605291138260010</fechaHora>
+				<filler/>
+				<idioma>es-EC</idioma>
+				<sesion>383b793c-3bad-48a2-af66-1702547ea671</sesion>
+				<ip>0.0.0.0</ip>
+				<idCliente>1003256292</idCliente>
+				<tipoIdCliente>0001</tipoIdCliente>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion/>
+					<canal/>
+				</bancs>
+				<documento>
+					<fechaContable/>
+					<numeroDocumento/>
+					<journals>
+						<journal>
+							<valor/>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>0155</codigo>
+				<mensaje>FAVOR CONTACTAR CON EL CE   0000   0000</mensaje>
+				<mensajeNegocio/>
+				<tipo>ERROR</tipo>
+				<recurso>tnd-msa-sp-wsclientes0119/064030</recurso>
+				<componente>TX064030</componente>
+				<backend>00045</backend>
+			</error>
+		</NS2:ConsultarSegmentoSubsegmento01Response>
+	</NS1:Body>
+</NS1:Envelope>
+
