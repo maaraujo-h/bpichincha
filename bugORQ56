@@ -1,114 +1,85 @@
 migrado
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NS1:Envelope
-	xmlns:NS2="http://bpichincha.com/servicios"
-	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
-	<NS1:Body>
-		<NS2:ConsultaDetalleCuenta01Response>
-			<headerOut>
-				<dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
-				<empresa>0010</empresa>
-				<canal>02</canal>
-				<medio>020002</medio>
-				<aplicacion>00647</aplicacion>
-				<agencia>197</agencia>
-				<tipoTransaccion>302000201</tipoTransaccion>
-				<geolocalizacion>1234</geolocalizacion>
-				<usuario>USINTERT</usuario>
-				<unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
-				<guid>59cae047abad47d5b683388a132fbddf</guid>
-				<fechaHora>202506251508450015</fechaHora>
-				<filler></filler>
-				<idioma>es-EC</idioma>
-				<sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
-				<ip>0.0.0.0</ip>
-				<idCliente>0801545674</idCliente>
-				<tipoIdCliente>0001</tipoIdCliente>
-				<bancs>
-					<teller>00070560</teller>
-					<terminal>1</terminal>
-					<institucion>0010</institucion>
-					<agencia>1</agencia>
-					<estacion>1</estacion>
-					<aplicacion></aplicacion>
-					<canal></canal>
-				</bancs>
-				<documento>
-					<fechaContable></fechaContable>
-					<numeroDocumento></numeroDocumento>
-					<journals>
-						<journal>
-							<valor></valor>
-						</journal>
-					</journals>
-				</documento>
-			</headerOut>
-			<bodyOut>
-				<fechaApertura>31052024</fechaApertura>
-				<estado>ACTIVO</estado>
-				<tasa>0.01</tasa>
-				<saldoPromedio>99745268.963</saldoPromedio>
-				<permiteAgregarAlias>false</permiteAgregarAlias>
-				<permiteActivarCupo>false</permiteActivarCupo>
-				<canales/>
-				<personasAutorizadas>
-					<personasAutorizada>
-						<cif>440486</cif>
-						<nombre>CRM  CRM PRUEBAS PRUEBAS</nombre>
-						<identificacion>1000994630</identificacion>
-						<tipoIdentificacion>0001</tipoIdentificacion>
-						<tipoAutorizacion>Propietario</tipoAutorizacion>
-					</personasAutorizada>
-				</personasAutorizadas>
-				<chequeras/>
-				<flujo>
-					<estado>finalizar</estado>
-					<campos>
-						<campo>
-							<clave></clave>
-							<valor></valor>
-						</campo>
-					</campos>
-				</flujo>
-			</bodyOut>
-			<error>
-				<codigo>0</codigo>
-				<mensaje>OK</mensaje>
-				<mensajeNegocio></mensajeNegocio>
-				<tipo>INFO</tipo>
-				<recurso>tpr-msa-sp-orqproductos0002/ConsultaDetalleCuenta01</recurso>
-				<componente>tpr-msa-sp-orqproductos0002</componente>
-				<backend>00638</backend>
-			</error>
-		</NS2:ConsultaDetalleCuenta01Response>
-	</NS1:Body>
-</NS1:Envelope>
-
-LEGADO
 <NS1:Envelope
 	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
 	<NS1:Body>
-		<NS2:ConsultaDetalleCuenta01Response
+		<NS2:SimuladorCredito01Response
 			xmlns:NS2="http://bpichincha.com/servicios">
 			<headerOut>
-				<dispositivo>9bQuTMzGBTM7/sxxVRY+E5whYnM3xQz3ZMSjDiYTlt8</dispositivo>
+				<dispositivo>[B@19eca998</dispositivo>
 				<empresa>0010</empresa>
-				<canal>02</canal>
-				<medio>020002</medio>
-				<aplicacion>00647</aplicacion>
-				<agencia>197</agencia>
-				<tipoTransaccion>302000201</tipoTransaccion>
-				<geolocalizacion>1234</geolocalizacion>
+				<canal>03</canal>
+				<medio>030001</medio>
+				<aplicacion>00663</aplicacion>
+				<agencia>0012</agencia>
+				<tipoTransaccion>302005601</tipoTransaccion>
+				<geolocalizacion>0000</geolocalizacion>
 				<usuario>USINTERT</usuario>
-				<unicidad>6ef49129ccd84529bda5317d260dee6c</unicidad>
-				<guid>59cae047abad47d5b683388a132fbddf</guid>
-				<fechaHora>202506251508450015</fechaHora>
+				<unicidad/>
+				<guid>00000002-9085-0056-bthc-cc9085000002</guid>
+				<fechaHora>202406271159320104</fechaHora>
+				<filler/>
+				<idioma>es-EC</idioma>
+				<sesion>a0000002-9085-0056-bthc-cc9085000002</sesion>
+				<ip>10.60.128.129</ip>
+				<idCliente/>
+				<tipoIdCliente/>
+				<bancs>
+					<teller>00070560</teller>
+					<terminal>1</terminal>
+					<institucion>0010</institucion>
+					<agencia>1</agencia>
+					<estacion>1</estacion>
+					<aplicacion/>
+					<canal/>
+				</bancs>
+				<documento>
+					<fechaContable/>
+					<numeroDocumento/>
+					<journals>
+						<journal>
+							<valor/>
+						</journal>
+					</journals>
+				</documento>
+			</headerOut>
+			<error>
+				<codigo>9928</codigo>
+				<mensaje>Error en invocacion a Bancs</mensaje>
+				<mensajeNegocio/>
+				<tipo>FATAL</tipo>
+				<recurso>tnd-msa-sp-wsclientes0119/064030</recurso>
+				<componente>TX064030</componente>
+				<backend>00045</backend>
+			</error>
+		</NS2:SimuladorCredito01Response>
+	</NS1:Body>
+</NS1:Envelope>
+legado
+
+<NS1:Envelope
+	xmlns:NS1="http://schemas.xmlsoap.org/soap/envelope/">
+	<NS1:Body>
+		<NS2:SimuladorCredito01Response
+			xmlns:NS2="http://bpichincha.com/servicios">
+			<headerOut>
+				<dispositivo>[B@19eca998</dispositivo>
+				<empresa>0010</empresa>
+				<canal>03</canal>
+				<medio>030001</medio>
+				<aplicacion>00663</aplicacion>
+				<agencia>0012</agencia>
+				<tipoTransaccion>302005601</tipoTransaccion>
+				<geolocalizacion>0000</geolocalizacion>
+				<usuario>USINTERT</usuario>
+				<unicidad></unicidad>
+				<guid>00000002-9085-0056-bthc-cc9085000002</guid>
+				<fechaHora>202406271159320104</fechaHora>
 				<filler></filler>
 				<idioma>es-EC</idioma>
-				<sesion>f65194bc-153a-497a-9b66-d80e6f8e51ff</sesion>
-				<ip>0.0.0.0</ip>
-				<idCliente>0801545674</idCliente>
-				<tipoIdCliente>0001</tipoIdCliente>
+				<sesion>a0000002-9085-0056-bthc-cc9085000002</sesion>
+				<ip>10.60.128.129</ip>
+				<idCliente></idCliente>
+				<tipoIdCliente></tipoIdCliente>
 				<bancs>
 					<teller>00070560</teller>
 					<terminal>1</terminal>
@@ -128,59 +99,15 @@ LEGADO
 					</journals>
 				</documento>
 			</headerOut>
-			<bodyOut>
-				<fechaApertura>31052024</fechaApertura>
-				<estado>ACTIVO</estado>
-				<tasa>0.01</tasa>
-				<saldoPromedio>99745268.963</saldoPromedio>
-				<permiteAgregarAlias>false</permiteAgregarAlias>
-				<alias></alias>
-				<permiteActivarCupo>false</permiteActivarCupo>
-				<canales>
-					<canal>
-						<codigo>020002</codigo>
-						<estado>inactivo</estado>
-						<montoActivo>0.00</montoActivo>
-						<montoLimite>0.00</montoLimite>
-						<moneda>USD</moneda>
-					</canal>
-					<canal>
-						<codigo>030001</codigo>
-						<estado>inactivo</estado>
-						<montoActivo>0.00</montoActivo>
-						<montoLimite>0.00</montoLimite>
-						<moneda>USD</moneda>
-					</canal>
-				</canales>
-				<personasAutorizadas>
-					<personasAutorizada>
-						<cif>440486</cif>
-						<nombre>CRM  CRM PRUEBAS PRUEBAS</nombre>
-						<identificacion>1000994630</identificacion>
-						<tipoIdentificacion>0001</tipoIdentificacion>
-						<tipoAutorizacion>Propietario</tipoAutorizacion>
-					</personasAutorizada>
-				</personasAutorizadas>
-				<chequeras></chequeras>
-				<flujo>
-					<estado>finalizar</estado>
-					<campos>
-						<campo>
-							<clave></clave>
-							<valor></valor>
-						</campo>
-					</campos>
-				</flujo>
-			</bodyOut>
 			<error>
-				<codigo>0</codigo>
-				<mensaje>TCSBRKR4_BP-OK</mensaje>
+				<codigo>9999</codigo>
+				<mensaje>TCSBRKR2_BP-TSECBPOC13-Tipo de tarjeta invalida</mensaje>
 				<mensajeNegocio></mensajeNegocio>
-				<tipo>INFO</tipo>
-				<recurso>ORQProductos0002/ConsultaDetalleCuenta01</recurso>
-				<componente>ConsultaDetalleCuenta01</componente>
+				<tipo>ERROR</tipo>
+				<recurso>UMPProductos0159/ConsultarFactores01</recurso>
+				<componente>consultarFactores01</componente>
 				<backend>00638</backend>
 			</error>
-		</NS2:ConsultaDetalleCuenta01Response>
+		</NS2:SimuladorCredito01Response>
 	</NS1:Body>
 </NS1:Envelope>
